@@ -33,6 +33,7 @@ const main = async () => {
           ".olx-ad-card__location-date-container > p"
         )?.innerText;
         console.log("address: ", address);
+        return { price, address };
       });
     });
     console.log("houseList: ", houseList);
