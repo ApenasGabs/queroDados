@@ -20,20 +20,30 @@ const main = async () => {
     // await page.goto(targetURlWithPrice, { waitUntil: "networkidle0" });
 
     const houseList = await page.evaluate(() => {
-      const itens = Array.from(
-        document.querySelectorAll('section[data-ds-component="DS-AdCard"]')
+      // Seleciona os elementos desejados
+      const filteredItens = Array.from(
+        document.querySelectorAll(
+          'section[data-ds-component="DS-AdCard"].olx-ad-card--horizontal'
+        )
       );
-      console.log("itens: ", itens);
-      return itens.map((li) => {
+
+      return filteredItens.map((li) => {
         const price = li.querySelector(
           'h3[data-ds-component="DS-Text"]'
         )?.innerText;
         console.log("price: ", price);
+
         const address = li.querySelector(
           ".olx-ad-card__location-date-container > p"
         )?.innerText;
         console.log("address: ", address);
-        return { price, address };
+
+        const bedrooms = li.querySelector(
+          'ul[data-testid="labelGroup"] li span'
+        )?.innerText;
+
+        console.log("bedrooms: ", bedrooms);
+        return { price, address, bedrooms };
       });
     });
     console.log("houseList: ", houseList);
