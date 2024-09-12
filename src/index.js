@@ -2,7 +2,7 @@ const puppeteer = require("puppeteer");
 const targetURL =
   "https://www.olx.com.br/imoveis/venda/casas/estado-sp/grande-campinas/campinas?q=casas&sp=1";
 const propertyType = "casas";
-const propertyMaxPrice = 500000;
+const propertyMaxPrice = 220000;
 const targetURLWithPrice = `https://www.olx.com.br/imoveis/venda/casas/estado-sp/grande-campinas/campinas?f=p&pe=${propertyMaxPrice}&q=${propertyType}&sp=1`;
 
 const getHouseList = async (page) => {
@@ -30,21 +30,6 @@ const getHouseList = async (page) => {
   });
 };
 
-const goToNextPage = async (page) => {
-  const nextButtonSelector = document.querySelector(
-    'div#listing-pagination a[aria-label="Próxima página"]'
-  );
-  const nextButton = await page.click(nextButtonSelector);
-  if (nextButton) {
-    await Promise.all([
-      // page.waitForNavigation({ waitUntil: "networkidle0" }),
-      page.click(nextButtonSelector),
-    ]);
-    return true;
-  }
-  return false;
-};
-
 const main = async () => {
   const browser = await puppeteer.launch({
     headless: false,
@@ -54,18 +39,24 @@ const main = async () => {
   const page = await browser.newPage();
 
   try {
-    await page.goto(targetURLWithPrice);
+    let pageNumber = 1;
 
     let hasNextPage = true;
     while (hasNextPage) {
+      await page.goto(`${targetURLWithPrice}&o=${pageNumber}`);
+      pageNumber++;
       const newHouses = await getHouseList(page);
       houseList.push(...newHouses);
-      console.log("houseList: ", houseList);
-
-      hasNextPage = await goToNextPage(page);
+      const lastHighPrice = houseList[houseList.length - 1].price.replace(
+        /[R$\s.]/g,
+        ""
+      );
+      console.log("lastHighPrice: ", lastHighPrice);
+      if (houseList.length && lastHighPrice >= propertyMaxPrice) {
+        hasNextPage = false;
+      }
     }
   } catch (error) {
-    console.log("error: ", error);
   } finally {
     await browser.close();
   }
