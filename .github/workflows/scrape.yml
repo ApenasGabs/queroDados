@@ -48,12 +48,17 @@ jobs:
 
       - name: Copy results.json to target repository
         run: |
-          cp results.json querocasa/src
+          cp -f src/results.json querocasa/src
           cd querocasa
           git config --global user.name 'github-actions'
           git config --global user.email 'github-actions@github.com'
-          git add results.json
-          git commit -m ":rocket: Update results.json"
-          git push
+          git add src/results.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m ":rocket: Update results.json"
+            git push
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
+
