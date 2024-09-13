@@ -1,9 +1,7 @@
 const puppeteer = require("puppeteer");
-const targetURL =
-  "https://www.olx.com.br/imoveis/venda/casas/estado-sp/grande-campinas/campinas?q=casas&sp=1";
-const propertyType = "casas";
-const propertyMaxPrice = 220000;
-const targetURLWithPrice = `https://www.olx.com.br/imoveis/venda/casas/estado-sp/grande-campinas/campinas?f=p&pe=${propertyMaxPrice}&q=${propertyType}&sp=1`;
+const targetURLWithPrice = `https://www.olx.com.br/imoveis/venda/casas/estado-sp/grande-campinas/campinas?f=p&pe=22000&q=casas&sp=1`;
+const fs = require("fs").promises;
+const path = require("path");
 
 const getHouseList = async (page) => {
   return await page.evaluate(() => {
@@ -40,7 +38,7 @@ const getHouseList = async (page) => {
 
 const main = async () => {
   const browser = await puppeteer.launch({
-    // headless: false,
+    headless: false,
     defaultViewport: null,
   });
   const houseList = [];
@@ -48,26 +46,66 @@ const main = async () => {
 
   try {
     let pageNumber = 1;
-
     let hasNextPage = true;
+
     while (hasNextPage) {
-      await page.goto(`${targetURLWithPrice}&o=${pageNumber}`);
-      pageNumber++;
+      console.log(`Acessando página ${pageNumber}`);
+      await page.goto(`${targetURLWithPrice}&o=${pageNumber}`, {
+        waitUntil: "domcontentloaded",
+      });
+
       const newHouses = await getHouseList(page);
+
+      if (newHouses.length === 0) {
+        console.log("Nenhuma casa encontrada nesta página.");
+        break;
+      }
+
       houseList.push(...newHouses);
-      const lastHighPrice = houseList[houseList.length - 1].price.replace(
-        /[R$\s.]/g,
-        ""
-      );
-      console.log("lastHighPrice: ", lastHighPrice);
-      if (houseList.length && lastHighPrice >= propertyMaxPrice) {
+
+      const lastHighPrice =
+        newHouses[newHouses.length - 1]?.price?.replace(/[R$\s.]/g, "") || 0;
+
+      if (parseInt(lastHighPrice) >= 22000) {
         hasNextPage = false;
       }
+
+      pageNumber++;
     }
-    console.log("houseList: ", houseList);
+
+    console.log("Total de casas encontradas:", houseList.length);
   } catch (error) {
+    console.error("Erro durante o scraping:", error);
   } finally {
     await browser.close();
+
+    const filePath = path.join(__dirname, "results.json");
+
+    try {
+      let existingHouses = [];
+      try {
+        const data = await fs.readFile(filePath, "utf-8");
+        existingHouses = JSON.parse(data);
+      } catch (err) {
+        if (err.code !== "ENOENT") throw err;
+        existingHouses = [];
+      }
+
+      for (let newHouse of houseList) {
+        const houseExists = existingHouses.some(
+          (house) =>
+            house.link === newHouse.link && house.price === newHouse.price
+        );
+        if (!houseExists) {
+          existingHouses.push(newHouse);
+        }
+      }
+
+      await fs.writeFile(filePath, JSON.stringify(existingHouses, null, 2));
+      console.log("Dados atualizados salvos em results.json");
+    } catch (err) {
+      console.error("Erro ao salvar o arquivo:", err);
+    }
   }
 };
 
