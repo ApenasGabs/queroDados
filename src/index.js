@@ -38,8 +38,9 @@ const getHouseList = async (page) => {
 
 const main = async () => {
   const browser = await puppeteer.launch({
-    headless: false,
+    headless: true,
     defaultViewport: null,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
   const houseList = [];
   const page = await browser.newPage();
