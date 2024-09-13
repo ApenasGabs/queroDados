@@ -48,7 +48,7 @@ jobs:
 
       - name: Copy results.json to target repository
         run: |
-          cp src/results.json querocasa/src
+          cp results.json querocasa/src
           cd querocasa
           git config --global user.name 'github-actions'
           git config --global user.email 'github-actions@github.com'
