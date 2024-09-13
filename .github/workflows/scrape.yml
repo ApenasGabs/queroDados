@@ -1,4 +1,4 @@
-name: Scrape OLX
+name: Scrape OLX and push results
 
 on:
   push:
@@ -9,17 +9,17 @@ on:
   workflow_dispatch:
 
 jobs:
-  scrape:
+  scrape-and-push:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4  
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4 
+        uses: actions/setup-node@v4
         with:
-          node-version: "20"  
+          node-version: "20"
 
       - name: Install dependencies
         run: npm install
@@ -34,8 +34,26 @@ jobs:
           # Executar o scraper
           node src/index.js
 
-      - name: Upload results
-        uses: actions/upload-artifact@v4 
+      - name: Save results.json as an artifact
+        uses: actions/upload-artifact@v4
         with:
           name: results
           path: src/results.json
+
+      - name: Clone the target repository
+        run: |
+          git clone https://github.com/ApenasGabs/querocasa.git
+        env:
+          GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
+
+      - name: Copy results.json to target repository
+        run: |
+          cp src/results.json querocasa/src
+          cd querocasa
+          git config --global user.name 'github-actions'
+          git config --global user.email 'github-actions@github.com'
+          git add results.json
+          git commit -m ":rocket: Update results.json"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
