@@ -24,8 +24,15 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run scraper
-        run: node src/index.js
+      - name: Install Xvfb
+        run: sudo apt-get install -y xvfb
+
+      - name: Run scraper with Xvfb
+        run: |
+          Xvfb :99 -ac &
+          export DISPLAY=:99
+          # Executar o scraper
+          node src/index.js
 
       - name: Upload results
         uses: actions/upload-artifact@v4 
