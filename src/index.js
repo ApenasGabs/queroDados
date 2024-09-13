@@ -25,14 +25,22 @@ const getHouseList = async (page) => {
         'ul[data-testid="labelGroup"] li span'
       )?.innerText;
 
-      return { address, bedrooms, price };
+      const link = li.querySelector(
+        'a[data-ds-component="DS-NewAdCard-Link"]'
+      )?.href;
+
+      const publishDate = li.querySelector(
+        'p[data-testid="ds-adcard-date"]'
+      )?.innerText;
+
+      return { address, bedrooms, link, price, publishDate };
     });
   });
 };
 
 const main = async () => {
   const browser = await puppeteer.launch({
-    headless: false,
+    // headless: false,
     defaultViewport: null,
   });
   const houseList = [];
@@ -56,6 +64,7 @@ const main = async () => {
         hasNextPage = false;
       }
     }
+    console.log("houseList: ", houseList);
   } catch (error) {
   } finally {
     await browser.close();
