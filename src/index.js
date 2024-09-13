@@ -1,5 +1,6 @@
 const puppeteer = require("puppeteer");
-const targetURLWithPrice = `https://www.olx.com.br/imoveis/venda/casas/estado-sp/grande-campinas/campinas?f=p&pe=22000&q=casas&sp=1`;
+const maxPrice = 500000
+const targetURLWithPrice = `https://www.olx.com.br/imoveis/venda/casas/estado-sp/grande-campinas/campinas?f=p&pe=${maxPrice}&q=casas&sp=1`;
 const fs = require("fs").promises;
 const path = require("path");
 
@@ -10,7 +11,8 @@ const getHouseList = async (page) => {
         'section[data-ds-component="DS-AdCard"].olx-ad-card--horizontal'
       )
     );
-    return filteredItems.map((li) => {
+    return filteredItems.map((li, idx) => {
+
       const price = li.querySelector(
         'h3[data-ds-component="DS-Text"]'
       )?.innerText;
@@ -31,7 +33,10 @@ const getHouseList = async (page) => {
         'p[data-testid="ds-adcard-date"]'
       )?.innerText;
 
-      return { address, bedrooms, link, price, publishDate };
+      const house = { address, bedrooms, link, price, publishDate };
+      console.log(`${idx + 1} ${house}`);
+
+      return house;
     });
   });
 };
@@ -67,7 +72,7 @@ const main = async () => {
       const lastHighPrice =
         newHouses[newHouses.length - 1]?.price?.replace(/[R$\s.]/g, "") || 0;
 
-      if (parseInt(lastHighPrice) >= 22000) {
+      if (parseInt(lastHighPrice) >= maxPrice) {
         hasNextPage = false;
       }
 
