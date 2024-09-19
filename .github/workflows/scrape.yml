@@ -42,7 +42,7 @@ jobs:
 
       - name: Clone the target repository
         run: |
-          git clone https://github.com/${{ secrets.TARGET_REPO_URL }} querocasa
+          git clone https://github.com/${{ secrets.TARGET_REPO_URL }}.git
         env:
           GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
 
@@ -58,5 +58,6 @@ jobs:
           else
             git commit -m ":rocket: Update results folder"
             git push https://${{ secrets.TARGET_REPO_PAT }}@github.com/${{ secrets.TARGET_REPO_URL }}.git
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
