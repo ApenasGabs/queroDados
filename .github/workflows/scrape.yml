@@ -45,6 +45,9 @@ jobs:
           git clone https://github.com/${{ secrets.TARGET_REPO_URL }}.git
         env:
           GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
+          
+      - name: Create data directory if not exists
+        run: mkdir -p querocasa/data
 
       - name: Copy results folder to target repository
         run: |
