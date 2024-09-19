@@ -82,7 +82,7 @@ module.exports = async () => {
   } catch (error) {
     console.error("Erro durante o scraping:", error);
   } finally {
-    // await browser.close();
+    await browser.close();
 
     const filePath = path.join(__dirname, "../data/results/olxResults.json");
 
