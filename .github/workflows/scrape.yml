@@ -32,33 +32,31 @@ jobs:
           Xvfb :99 -ac &
           export DISPLAY=:99
           # Executar o scraper
-          node src/index.js
+          node scrapers/index.js
 
-      - name: Save results.json as an artifact
+      - name: Save results folder as an artifact
         uses: actions/upload-artifact@v4
         with:
           name: results
-          path: src/results.json
+          path: data/results
 
       - name: Clone the target repository
         run: |
-          git clone https://github.com/ApenasGabs/querocasa.git
+          git clone https://github.com/${{ secrets.TARGET_REPO_URL }} querocasa
         env:
           GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
 
-      - name: Copy results.json to target repository
+      - name: Copy results folder to target repository
         run: |
-              cp -f src/results.json querocasa/src
-              cd querocasa
-              git config --global user.name 'github-actions'
-              git config --global user.email 'github-actions@github.com'
-              git add src/results.json
-              if git diff --cached --quiet; then
-                echo "No changes to commit"
-              else
-                git commit -m ":rocket: Update results.json"
-                git push https://${{ secrets.TARGET_REPO_PAT }}@github.com/ApenasGabs/querocasa.git
-              fi
+          cp -r data/results querocasa/data
+          cd querocasa
+          git config --global user.name ${{ secrets.GIT_USER_NAME }}
+          git config --global user.email ${{ secrets.GIT_USER_EMAIL }}
+          git add data/results
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m ":rocket: Update results folder"
+            git push https://${{ secrets.TARGET_REPO_PAT }}@github.com/${{ secrets.TARGET_REPO_URL }}.git
         env:
           GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
-
