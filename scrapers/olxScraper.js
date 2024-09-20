@@ -13,16 +13,17 @@ const getHouseList = async (page) => {
       )
     );
     return filteredItems.map((li, idx) => {
+      const description = Array.from(
+        li.querySelectorAll('ul[data-testid="labelGroup"] li span')
+      )
+        .map((el) => el.getAttribute("aria-label"))
+        .join(", ");
       const price = li.querySelector(
         'h3[data-ds-component="DS-Text"]'
       )?.innerText;
 
       const address = li.querySelector(
         ".olx-ad-card__location-date-container > p"
-      )?.innerText;
-
-      const bedrooms = li.querySelector(
-        'ul[data-testid="labelGroup"] li span'
       )?.innerText;
 
       const link = li.querySelector(
@@ -33,7 +34,13 @@ const getHouseList = async (page) => {
         'p[data-testid="ds-adcard-date"]'
       )?.innerText;
 
-      const house = { address, bedrooms, link, price, publishDate };
+      const house = {
+        address,
+        description,
+        link,
+        price,
+        publishDate,
+      };
       console.log(`${idx + 1} ${house}`);
 
       return house;
