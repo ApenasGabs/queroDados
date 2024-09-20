@@ -1,3 +1,4 @@
+// utils/dateHelper.js
 const months = {
   jan: "01",
   fev: "02",
@@ -15,29 +16,23 @@ const months = {
 
 const convertDate = (dateString) => {
   let now = new Date();
-  const timeString = dateString.split(",")[1];
-  console.log("timeString: ", timeString);
+  const time = dateString.split(",")[1].trim() + ":00";
 
   if (dateString.includes("Hoje")) {
-    return `${now.toISOString().split("T")[0]} ${dateString
-      .split(",")[1]
-      .trim()}:00`;
+    return `${now.toISOString().split("T")[0]} ${time}`;
   }
 
   if (dateString.includes("Ontem")) {
     let yesterday = new Date();
     yesterday.setDate(now.getDate() - 1);
-    return `${yesterday.toISOString().split("T")[0]} ${dateString
-      .split(",")[1]
-      .trim()}:00`;
+    return `${yesterday.toISOString().split("T")[0]} ${time}`;
   }
 
-  const [day, month, time] = dateString.split(" de ");
-
+  const [day, month] = dateString.split(" de ");
   const fullYear = now.getFullYear();
   const formattedDate = `${fullYear}-${months[month.split(",")[0].trim()]}-${day
     .trim()
-    .padStart(2, "0")} ${time}:00`;
+    .padStart(2, "0")} ${time}`;
 
   return formattedDate;
 };
