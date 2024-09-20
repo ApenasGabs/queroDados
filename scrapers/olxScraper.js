@@ -2,6 +2,7 @@ const puppeteer = require("puppeteer");
 const fs = require("fs").promises;
 const path = require("path");
 const { saveJSON, loadJSON } = require("../utils/fileHelper");
+const { convertDate } = require("../utils/dateHelper");
 const config = require("../config/olxConfig");
 
 const getHouseList = async (page) => {
@@ -65,6 +66,9 @@ module.exports = async () => {
         console.log("Nenhuma casa encontrada nesta página.");
         break;
       }
+      newHouses.forEach((house) => {
+        house.publishDate = convertDate(house.publishDate);
+      });
 
       houseList.push(...newHouses);
 
