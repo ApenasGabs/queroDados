@@ -54,35 +54,25 @@ const getHouseList = async (page) => {
 
 const scrollToEndOfPage = async (page) => {
   return await page.evaluate(async () => {
-    let isNextPageButtonVisible = false;
-    let totalHeight = 0;
-    const distance = 100;
-    const maxItems = 100;
+    await new Promise((resolve) => {
+      let totalHeight = 0;
+      let scrollCount = 0;
+      const maxScrolls = 250;
+      const distance = 100;
 
-    while (!isNextPageButtonVisible) {
-      window.scrollBy(0, distance);
-      totalHeight += distance;
+      const timer = setInterval(() => {
+        if (scrollCount < maxScrolls) {
+          window.scrollBy(0, distance);
+          totalHeight += distance;
+          scrollCount++;
+        }
 
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      const totalItensOnScreen = Array.from(
-        document.querySelectorAll(
-          'div.listing-wrapper__content div[data-testid="card"]'
-        )
-      ).length;
-
-      const nextPageButton = document.querySelector(
-        '[data-testid="next-page"]'
-      );
-
-      if (totalItensOnScreen >= maxItems) {
-        isNextPageButtonVisible = true;
-      } else if (nextPageButton) {
-        isNextPageButtonVisible = true;
-      } else if (totalHeight >= document.body.scrollHeight) {
-        isNextPageButtonVisible = true;
-      }
-    }
+        if (totalHeight >= document.body.scrollHeight) {
+          clearInterval(timer);
+          resolve();
+        }
+      }, 100);
+    });
   });
 };
 
@@ -106,6 +96,7 @@ module.exports = async () => {
         waitUntil: "domcontentloaded",
       });
 
+      await scrollToEndOfPage(page);
       await scrollToEndOfPage(page);
 
       const newHouses = await getHouseList(page);
