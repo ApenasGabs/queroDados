@@ -53,40 +53,35 @@ const getHouseList = async (page) => {
 };
 
 const scrollToEndOfPage = async (page) => {
-  return await page.evaluate(() => {
+  return await page.evaluate(async () => {
     let isNextPageButtonVisible = false;
     let totalHeight = 0;
-    const distance = 80;
+    const distance = 100;
+    const maxItems = 100;
+
     while (!isNextPageButtonVisible) {
-      const scrollPage = () =>
-        setInterval(() => {
-          window.scrollBy(0, distance);
-          totalHeight += distance;
+      window.scrollBy(0, distance);
+      totalHeight += distance;
 
-          const totalItensOnScreen = Array.from(
-            document.querySelectorAll(
-              'div.listing-wrapper__content div[data-testid="card"]'
-            )
-          ).length;
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
-          const nextPageButton = document.querySelector(
-            '[data-testid="next-page"]'
-          );
+      const totalItensOnScreen = Array.from(
+        document.querySelectorAll(
+          'div.listing-wrapper__content div[data-testid="card"]'
+        )
+      ).length;
 
-          if (totalItensOnScreen >= maxItems) {
-            console.log(
-              "Parando o scroll: já temos mais de 100 itens na tela."
-            );
-            isNextPageButtonVisible = true;
-          } else if (nextPageButton) {
-            console.log("Parando o scroll: botão de próxima página detectado.");
-            isNextPageButtonVisible = true;
-          } else if (totalHeight >= document.body.scrollHeight) {
-            console.log("Parando o scroll: final da página atingido.");
-            isNextPageButtonVisible = true;
-          }
-        }, 100);
-      scrollPage();
+      const nextPageButton = document.querySelector(
+        '[data-testid="next-page"]'
+      );
+
+      if (totalItensOnScreen >= maxItems) {
+        isNextPageButtonVisible = true;
+      } else if (nextPageButton) {
+        isNextPageButtonVisible = true;
+      } else if (totalHeight >= document.body.scrollHeight) {
+        isNextPageButtonVisible = true;
+      }
     }
   });
 };
