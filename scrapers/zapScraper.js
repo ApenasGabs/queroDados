@@ -2,27 +2,27 @@ const puppeteer = require("puppeteer");
 const fs = require("fs").promises;
 const path = require("path");
 const { saveJSON, loadJSON } = require("../utils/fileHelper");
-const { convertDate } = require("../utils/dateHelper");
-const createTargetURL = require("../config/zapConfig");
+// const { convertDate } = require("../utils/dateHelper");
+const { createTargetURL } = require("../config/zapConfig");
+const { maxPrice } = require("../config/defaultConfig");
 
 const getHouseList = async (page) => {
-  const houseList = await page.evaluate(() => {
+  return await page.evaluate(() => {
     const filteredItems = Array.from(
       document.querySelectorAll(
         'div.listing-wrapper__content div[data-testid="card"]'
       )
     );
-    const parsedItems = filteredItems.map((li, idx) => {
+
+    return filteredItems.map((li, idx) => {
       const description = Array.from(
         li.querySelectorAll('p[data-testid="card-amenity"]')
-      )
-        .map((el) => {
-          const key = el.getAttribute("itemprop");
-          const value = el.innerText;
-          const description = `"${key}": "${value}"`;
-          return description;
-        })
-        .join(", ");
+      ).reduce((acc, el) => {
+        const key = el.getAttribute("itemprop");
+        const value = el.innerText;
+        acc[key] = value;
+        return acc;
+      }, {});
 
       const price = li.querySelector(
         'div[data-cy="rp-cardProperty-price-txt"] p'
@@ -38,24 +38,21 @@ const getHouseList = async (page) => {
         console.log("duplicatedButton: ", duplicatedButton);
       }
 
-      const link = li.querySelector('a[itemprop="url"]')?.href;
+      const link = li.querySelector("a")?.href;
 
       // const publishDate = li.querySelector()?.innerText;
 
       const house = {
         address,
-        description: { description },
+        description,
         link,
         price,
-        // publishDate,
       };
       console.log(`${idx + 1} ${house}`);
 
       return house;
     });
-    return parsedItems;
   });
-  return houseList;
 };
 
 module.exports = async () => {
@@ -78,21 +75,19 @@ module.exports = async () => {
         waitUntil: "domcontentloaded",
       });
       const newHouses = await getHouseList(page);
-      await page.waitForTimeout(3000);
+      console.log("newHouses: ", newHouses);
+
       if (newHouses.length === 0) {
         console.log("Nenhuma casa encontrada nesta página.");
         break;
       }
-      newHouses.forEach((house) => {
-        house.publishDate = convertDate(house.publishDate);
-      });
 
       houseList.push(...newHouses);
 
       const lastHighPrice =
         newHouses[newHouses.length - 1]?.price?.replace(/[R$\s.]/g, "") || 0;
 
-      if (parseInt(lastHighPrice) >= config.maxPrice) {
+      if (parseInt(lastHighPrice) >= maxPrice) {
         hasNextPage = false;
       }
 
