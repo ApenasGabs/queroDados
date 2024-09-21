@@ -2,7 +2,6 @@ const puppeteer = require("puppeteer");
 const fs = require("fs").promises;
 const path = require("path");
 const { saveJSON, loadJSON } = require("../utils/fileHelper");
-// const { convertDate } = require("../utils/dateHelper");
 const { createTargetURL } = require("../config/zapConfig");
 const { maxPrice } = require("../config/defaultConfig");
 
@@ -40,8 +39,6 @@ const getHouseList = async (page) => {
 
       const link = li.querySelector("a")?.href;
 
-      // const publishDate = li.querySelector()?.innerText;
-
       const house = {
         address,
         description,
@@ -52,6 +49,45 @@ const getHouseList = async (page) => {
 
       return house;
     });
+  });
+};
+
+const scrollToEndOfPage = async (page) => {
+  return await page.evaluate(() => {
+    let isNextPageButtonVisible = false;
+    let totalHeight = 0;
+    const distance = 80;
+    while (!isNextPageButtonVisible) {
+      const scrollPage = () =>
+        setInterval(() => {
+          window.scrollBy(0, distance);
+          totalHeight += distance;
+
+          const totalItensOnScreen = Array.from(
+            document.querySelectorAll(
+              'div.listing-wrapper__content div[data-testid="card"]'
+            )
+          ).length;
+
+          const nextPageButton = document.querySelector(
+            '[data-testid="next-page"]'
+          );
+
+          if (totalItensOnScreen >= maxItems) {
+            console.log(
+              "Parando o scroll: já temos mais de 100 itens na tela."
+            );
+            isNextPageButtonVisible = true;
+          } else if (nextPageButton) {
+            console.log("Parando o scroll: botão de próxima página detectado.");
+            isNextPageButtonVisible = true;
+          } else if (totalHeight >= document.body.scrollHeight) {
+            console.log("Parando o scroll: final da página atingido.");
+            isNextPageButtonVisible = true;
+          }
+        }, 100);
+      scrollPage();
+    }
   });
 };
 
@@ -74,6 +110,9 @@ module.exports = async () => {
       await page.goto(url, {
         waitUntil: "domcontentloaded",
       });
+
+      await scrollToEndOfPage(page);
+
       const newHouses = await getHouseList(page);
       console.log("newHouses: ", newHouses);
 
@@ -98,7 +137,7 @@ module.exports = async () => {
   } catch (error) {
     console.error("Erro durante o scraping:", error);
   } finally {
-    await browser.close();
+    // await browser.close();
 
     const filePath = path.join(__dirname, "../data/results/zapResults.json");
 
@@ -116,7 +155,7 @@ module.exports = async () => {
       }
 
       await saveJSON(filePath, existingHouses);
-      console.log("Dados atualizados salvos em olxResults.json");
+      console.log("Dados atualizados salvos em zapResults.json");
     } catch (err) {
       console.error("Erro ao salvar o arquivo:", err);
     }
