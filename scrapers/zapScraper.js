@@ -3,50 +3,59 @@ const fs = require("fs").promises;
 const path = require("path");
 const { saveJSON, loadJSON } = require("../utils/fileHelper");
 const { convertDate } = require("../utils/dateHelper");
-const config = require("../config/olxConfig");
-const { maxPrice } = require("../config/defaultConfig");
+const createTargetURL = require("../config/zapConfig");
 
 const getHouseList = async (page) => {
-  return await page.evaluate(() => {
+  const houseList = await page.evaluate(() => {
     const filteredItems = Array.from(
       document.querySelectorAll(
-        'section[data-ds-component="DS-AdCard"].olx-ad-card--horizontal'
+        'div.listing-wrapper__content div[data-testid="card"]'
       )
     );
-    return filteredItems.map((li, idx) => {
+    const parsedItems = filteredItems.map((li, idx) => {
       const description = Array.from(
-        li.querySelectorAll('ul[data-testid="labelGroup"] li span')
+        li.querySelectorAll('p[data-testid="card-amenity"]')
       )
-        .map((el) => el.getAttribute("aria-label"))
+        .map((el) => {
+          const key = el.getAttribute("itemprop");
+          const value = el.innerText;
+          const description = `"${key}": "${value}"`;
+          return description;
+        })
         .join(", ");
+
       const price = li.querySelector(
-        'h3[data-ds-component="DS-Text"]'
+        'div[data-cy="rp-cardProperty-price-txt"] p'
       )?.innerText;
 
       const address = li.querySelector(
-        ".olx-ad-card__location-date-container > p"
+        'h2[data-cy="rp-cardProperty-location-txt"]'
       )?.innerText;
+      const duplicatedButton = li.querySelector(
+        'button[data-cy="rp-cardProperty-duplicated-button"]'
+      );
+      if (duplicatedButton) {
+        console.log("duplicatedButton: ", duplicatedButton);
+      }
 
-      const link = li.querySelector(
-        'a[data-ds-component="DS-NewAdCard-Link"]'
-      )?.href;
+      const link = li.querySelector('a[itemprop="url"]')?.href;
 
-      const publishDate = li.querySelector(
-        'p[data-testid="ds-adcard-date"]'
-      )?.innerText;
+      // const publishDate = li.querySelector()?.innerText;
 
       const house = {
         address,
-        description,
+        description: { description },
         link,
         price,
-        publishDate,
+        // publishDate,
       };
       console.log(`${idx + 1} ${house}`);
 
       return house;
     });
+    return parsedItems;
   });
+  return houseList;
 };
 
 module.exports = async () => {
@@ -64,12 +73,12 @@ module.exports = async () => {
 
     while (hasNextPage) {
       console.log(`Acessando página ${pageNumber}`);
-      await page.goto(`${config.targetURLWithPrice}&o=${pageNumber}`, {
+      const url = createTargetURL({ pagina: pageNumber });
+      await page.goto(url, {
         waitUntil: "domcontentloaded",
       });
-
       const newHouses = await getHouseList(page);
-
+      await page.waitForTimeout(3000);
       if (newHouses.length === 0) {
         console.log("Nenhuma casa encontrada nesta página.");
         break;
@@ -83,7 +92,7 @@ module.exports = async () => {
       const lastHighPrice =
         newHouses[newHouses.length - 1]?.price?.replace(/[R$\s.]/g, "") || 0;
 
-      if (parseInt(lastHighPrice) >= maxPrice) {
+      if (parseInt(lastHighPrice) >= config.maxPrice) {
         hasNextPage = false;
       }
 
@@ -96,7 +105,7 @@ module.exports = async () => {
   } finally {
     await browser.close();
 
-    const filePath = path.join(__dirname, "../data/results/olxResults.json");
+    const filePath = path.join(__dirname, "../data/results/zapResults.json");
 
     try {
       let existingHouses = await loadJSON(filePath);
