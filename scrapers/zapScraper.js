@@ -48,7 +48,7 @@ const getHouseList = async (page) => {
       console.log(`${idx + 1} ${house}`);
 
       return house;
-    });
+    });   
   });
 };
 
@@ -57,8 +57,8 @@ const scrollToEndOfPage = async (page) => {
     await new Promise((resolve) => {
       let totalHeight = 0;
       let scrollCount = 0;
-      const maxScrolls = 250;
-      const distance = 100;
+      const maxScrolls = 500;
+      const distance = 150;
 
       const timer = setInterval(() => {
         if (scrollCount < maxScrolls) {
@@ -71,7 +71,7 @@ const scrollToEndOfPage = async (page) => {
           clearInterval(timer);
           resolve();
         }
-      }, 100);
+      }, 500);
     });
   });
 };
@@ -96,7 +96,6 @@ module.exports = async () => {
         waitUntil: "domcontentloaded",
       });
 
-      await scrollToEndOfPage(page);
       await scrollToEndOfPage(page);
 
       const newHouses = await getHouseList(page);
@@ -123,7 +122,7 @@ module.exports = async () => {
   } catch (error) {
     console.error("Erro durante o scraping:", error);
   } finally {
-    // await browser.close();
+    await browser.close();
 
     const filePath = path.join(__dirname, "../data/results/zapResults.json");
 
