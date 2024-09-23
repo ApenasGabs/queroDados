@@ -4,6 +4,7 @@ const path = require("path");
 const { saveJSON, loadJSON } = require("../utils/fileHelper");
 const { createTargetURL } = require("../config/zapConfig");
 const { maxPrice } = require("../config/defaultConfig");
+const { simulateInteractions } = require("../utils/interactionsHelper");
 
 const getHouseList = async (page) => {
   return await page.evaluate(() => {
@@ -48,7 +49,7 @@ const getHouseList = async (page) => {
       console.log(`${idx + 1} ${house}`);
 
       return house;
-    });   
+    });
   });
 };
 
@@ -79,8 +80,12 @@ const scrollToEndOfPage = async (page) => {
 module.exports = async () => {
   const browser = await puppeteer.launch({
     headless: false,
-    defaultViewport: null,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    defaultViewport: { width: 1980, height: 1280 },
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--window-size=1980,1280",
+    ],
   });
   const houseList = [];
   const page = await browser.newPage();
@@ -96,7 +101,7 @@ module.exports = async () => {
         waitUntil: "domcontentloaded",
       });
 
-      await scrollToEndOfPage(page);
+      await simulateInteractions(page);
 
       const newHouses = await getHouseList(page);
       console.log("newHouses: ", newHouses);
