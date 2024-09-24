@@ -10,13 +10,14 @@ const getHouseList = async (page) => {
   return await page.evaluate(() => {
     const filteredItems = Array.from(
       document.querySelectorAll(
-        'div.listing-wrapper__content div[data-testid="card"]'
+        "div.listing-wrapper__content div[data-position]"
       )
     );
 
     return filteredItems.map((li, idx) => {
+      const card = li.querySelector('div[data-testid="card"]');
       const description = Array.from(
-        li.querySelectorAll('p[data-testid="card-amenity"]')
+        card.querySelectorAll('p[data-testid="card-amenity"]')
       ).reduce((acc, el) => {
         const key = el.getAttribute("itemprop");
         const value = el.innerText;
@@ -24,14 +25,14 @@ const getHouseList = async (page) => {
         return acc;
       }, {});
 
-      const price = li.querySelector(
+      const price = card.querySelector(
         'div[data-cy="rp-cardProperty-price-txt"] p'
       )?.innerText;
 
-      const address = li.querySelector(
+      const address = card.querySelector(
         'h2[data-cy="rp-cardProperty-location-txt"]'
       )?.innerText;
-      const duplicatedButton = li.querySelector(
+      const duplicatedButton = card.querySelector(
         'button[data-cy="rp-cardProperty-duplicated-button"]'
       );
       if (duplicatedButton) {
@@ -54,23 +55,22 @@ const getHouseList = async (page) => {
 };
 
 module.exports = async () => {
-  const browser = await puppeteer.launch({
-    headless: false,
-    defaultViewport: { width: 1980, height: 1280 },
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--window-size=1980,1280",
-    ],
-  });
-  const houseList = [];
-  const page = await browser.newPage();
-
   try {
     let pageNumber = 1;
     let hasNextPage = true;
 
     while (hasNextPage) {
+      const browser = await puppeteer.launch({
+        headless: false,
+        defaultViewport: { width: 1980, height: 1280 },
+        args: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--window-size=1980,1280",
+        ],
+      });
+      const houseList = [];
+      const page = await browser.newPage();
       console.log(`Acessando página ${pageNumber}`);
       const url = createTargetURL({ pagina: pageNumber });
       await page.goto(url, {
@@ -102,6 +102,7 @@ module.exports = async () => {
         hasNextPage = false;
       }
 
+      // await getNextPage(page);
       pageNumber++;
     }
 
