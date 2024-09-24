@@ -1,9 +1,12 @@
-const fs = require("fs");
+const path = require("path");
+const { loadJSON } = require("./fileHelper");
 
 const simulateInteractions = async (page) => {
-  const interactionData = JSON.parse(
-    fs.readFileSync("./data/interactionData.json")
-  );
+  const filePath = path.join(__dirname, "./data/interactionData.json");
+  console.log("filePath: ", filePath);
+
+  const interactionData = await loadJSON(filePath);
+
   const { scroll, mouse } = interactionData;
 
   for (let i = 0; i < scroll.length || i < mouse.length; i++) {

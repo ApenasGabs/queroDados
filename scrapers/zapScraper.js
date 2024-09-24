@@ -53,30 +53,6 @@ const getHouseList = async (page) => {
   });
 };
 
-const scrollToEndOfPage = async (page) => {
-  return await page.evaluate(async () => {
-    await new Promise((resolve) => {
-      let totalHeight = 0;
-      let scrollCount = 0;
-      const maxScrolls = 500;
-      const distance = 150;
-
-      const timer = setInterval(() => {
-        if (scrollCount < maxScrolls) {
-          window.scrollBy(0, distance);
-          totalHeight += distance;
-          scrollCount++;
-        }
-
-        if (totalHeight >= document.body.scrollHeight) {
-          clearInterval(timer);
-          resolve();
-        }
-      }, 500);
-    });
-  });
-};
-
 module.exports = async () => {
   const browser = await puppeteer.launch({
     headless: false,
@@ -99,8 +75,14 @@ module.exports = async () => {
       const url = createTargetURL({ pagina: pageNumber });
       await page.goto(url, {
         waitUntil: "domcontentloaded",
+        timeout: 0,
       });
-
+      await page.waitForSelector(
+        'div.listing-wrapper__content div[data-testid="card"]',
+        {
+          timeout: 30000,
+        }
+      );
       await simulateInteractions(page);
 
       const newHouses = await getHouseList(page);
