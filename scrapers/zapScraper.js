@@ -55,21 +55,21 @@ const getHouseList = async (page) => {
 };
 
 module.exports = async () => {
+  const houseList = [];
   try {
     let pageNumber = 1;
     let hasNextPage = true;
-    const houseList = [];
-
+    const browserProps = {
+      headless: false,
+      defaultViewport: { width: 1980, height: 1280 },
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--window-size=1980,1280",
+      ],
+    };
     while (hasNextPage) {
-      const browser = await puppeteer.launch({
-        headless: false,
-        defaultViewport: { width: 1980, height: 1280 },
-        args: [
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--window-size=1980,1280",
-        ],
-      });
+      const browser = await puppeteer.launch(browserProps);
       const page = await browser.newPage();
       console.log(`Acessando página ${pageNumber}`);
       const url = createTargetURL({ pagina: pageNumber });
@@ -99,35 +99,33 @@ module.exports = async () => {
         newHouses[newHouses.length - 1]?.price?.replace(/[R$\s.]/g, "") || 0;
 
       if (parseInt(lastHighPrice) >= maxPrice) {
+        console.log("preço final chegou: ", lastHighPrice);
         hasNextPage = false;
       }
-
-      // await getNextPage(page);
       pageNumber++;
+      await browser.close();
     }
 
     console.log("Total de casas encontradas:", houseList.length);
   } catch (error) {
     console.error("Erro durante o scraping:", error);
   } finally {
-    await browser.close();
-
     const filePath = path.join(__dirname, "../data/results/zapResults.json");
 
     try {
-      let existingHouses = await loadJSON(filePath);
+      // let existingHouses = await loadJSON(filePath);
 
-      for (let newHouse of houseList) {
-        const houseExists = existingHouses.some(
-          (house) =>
-            house.link === newHouse.link && house.price === newHouse.price
-        );
-        if (!houseExists) {
-          existingHouses.push(newHouse);
-        }
-      }
+      // for (let newHouse of houseList) {
+      //   const houseExists = existingHouses.some(
+      //     (house) =>
+      //       house.link === newHouse.link && house.price === newHouse.price
+      //   );
+      //   if (!houseExists) {
+      //     existingHouses.push(newHouse);
+      //   }
+      // }
 
-      await saveJSON(filePath, existingHouses);
+      await saveJSON(filePath, houseList);
       console.log("Dados atualizados salvos em zapResults.json");
     } catch (err) {
       console.error("Erro ao salvar o arquivo:", err);

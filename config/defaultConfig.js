@@ -1,4 +1,4 @@
-const maxPrice = 350000;
+const maxPrice = 270000;
 
 module.exports = {
   maxPrice,
