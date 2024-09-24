@@ -3,7 +3,6 @@ const { loadJSON } = require("./fileHelper");
 
 const simulateInteractions = async (page) => {
   const filePath = path.join(__dirname, "./data/interactionData.json");
-  console.log("filePath: ", filePath);
 
   const interactionData = await loadJSON(filePath);
 

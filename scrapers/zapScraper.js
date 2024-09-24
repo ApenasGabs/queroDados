@@ -58,6 +58,7 @@ module.exports = async () => {
   try {
     let pageNumber = 1;
     let hasNextPage = true;
+    const houseList = [];
 
     while (hasNextPage) {
       const browser = await puppeteer.launch({
@@ -69,7 +70,6 @@ module.exports = async () => {
           "--window-size=1980,1280",
         ],
       });
-      const houseList = [];
       const page = await browser.newPage();
       console.log(`Acessando página ${pageNumber}`);
       const url = createTargetURL({ pagina: pageNumber });
