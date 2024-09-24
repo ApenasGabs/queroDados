@@ -1,13 +1,19 @@
 const puppeteer = require("puppeteer");
-const fs = require("fs").promises;
 const path = require("path");
 const { saveJSON, loadJSON } = require("../utils/fileHelper");
 const { convertDate } = require("../utils/dateHelper");
 const config = require("../config/olxConfig");
 const { maxPrice } = require("../config/defaultConfig");
 
+const attributeMapping = {
+  quartos: "numberOfRooms",
+  "metros quadrados": "floorSize",
+  "vagas de garagem": "numberOfParkingSpaces",
+  banheiros: "numberOfBathroomsTotal",
+};
+
 const getHouseList = async (page) => {
-  return await page.evaluate(() => {
+  return await page.evaluate((attributeMapping) => {
     const filteredItems = Array.from(
       document.querySelectorAll(
         'section[data-ds-component="DS-AdCard"].olx-ad-card--horizontal'
@@ -18,7 +24,19 @@ const getHouseList = async (page) => {
         li.querySelectorAll('ul[data-testid="labelGroup"] li span')
       )
         .map((el) => el.getAttribute("aria-label"))
-        .join(", ");
+        .reduce((acc, item) => {
+          const parts = item.split(" ");
+          const value = parts.shift();
+          const key = parts.join(" ");
+          const attributeKey = Object.keys(attributeMapping).find((k) =>
+            key.includes(k)
+          );
+          if (attributeKey) {
+            acc.push({ [attributeMapping[attributeKey]]: `${value}` });
+          }
+          return acc;
+        }, []);
+
       const price = li.querySelector(
         'h3[data-ds-component="DS-Text"]'
       )?.innerText;
@@ -35,18 +53,12 @@ const getHouseList = async (page) => {
         'p[data-testid="ds-adcard-date"]'
       )?.innerText;
 
-      const house = {
-        address,
-        description,
-        link,
-        price,
-        publishDate,
-      };
+      const house = { address, description, link, price, publishDate };
       console.log(`${idx + 1} ${house}`);
 
       return house;
     });
-  });
+  }, attributeMapping);
 };
 
 module.exports = async () => {

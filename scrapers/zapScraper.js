@@ -20,10 +20,10 @@ const getHouseList = async (page) => {
         card.querySelectorAll('p[data-testid="card-amenity"]')
       ).reduce((acc, el) => {
         const key = el.getAttribute("itemprop");
-        const value = el.innerText;
-        acc[key] = value;
+        const value = el.innerText.split(" ").shift();
+        acc.push({ [key]: value });
         return acc;
-      }, {});
+      }, []);
 
       const price = card.querySelector(
         'div[data-cy="rp-cardProperty-price-txt"] p'
