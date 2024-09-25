@@ -25,6 +25,11 @@ const getHouseList = async (page) => {
         return acc;
       }, []);
 
+      const images = Array.from(
+        li.querySelectorAll(
+          'div[data-cy="rp-cardProperty-image-img"] ul li img'
+        )
+      ).map((img) => img.src);
       const price = card.querySelector(
         'div[data-cy="rp-cardProperty-price-txt"] p'
       )?.innerText;
@@ -44,6 +49,7 @@ const getHouseList = async (page) => {
       const house = {
         address,
         description,
+        images,
         link,
         price,
       };
