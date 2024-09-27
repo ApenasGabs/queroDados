@@ -48,7 +48,7 @@ jobs:
           
       - name: Create data directory if not exists
         run: mkdir -p querocasa/data
-        - name: Copy results folder to target repository
+      - name: Copy results folder to target repository
         run: |
           cp -r data/results querocasa/data
           cd querocasa
