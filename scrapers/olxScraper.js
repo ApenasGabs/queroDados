@@ -36,7 +36,7 @@ const getHouseList = async (page) => {
           }
           return acc;
         }, []);
-
+      const images = li.querySelector("img").src;
       const price = li.querySelector(
         'h3[data-ds-component="DS-Text"]'
       )?.innerText;
@@ -53,7 +53,14 @@ const getHouseList = async (page) => {
         'p[data-testid="ds-adcard-date"]'
       )?.innerText;
 
-      const house = { address, description, link, price, publishDate };
+      const house = {
+        address,
+        description,
+        images: [images.includes("notFound") ? "" : images],
+        link,
+        price,
+        publishDate,
+      };
       console.log(`${idx + 1} ${house}`);
 
       return house;
