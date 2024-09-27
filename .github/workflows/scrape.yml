@@ -48,15 +48,16 @@ jobs:
           
       - name: Create data directory if not exists
         run: mkdir -p querocasa/data
-
-      - name: Copy results folder to target repository
+        - name: Copy results folder to target repository
         run: |
           cp -r data/results querocasa/data
           cd querocasa
           git config --global user.name ${{ secrets.GIT_USER_NAME }}
           git config --global user.email ${{ secrets.GIT_USER_EMAIL }}
           git checkout api --
+          git stash
           git rebase origin/main
+          git stash pop
           git add data/results
           if git diff --cached --quiet; then
             echo "No changes to commit"
@@ -66,3 +67,4 @@ jobs:
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
+      
