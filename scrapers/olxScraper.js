@@ -118,19 +118,7 @@ module.exports = async () => {
     const filePath = path.join(__dirname, "../data/results/olxResults.json");
 
     try {
-      let existingHouses = await loadJSON(filePath);
-
-      for (let newHouse of houseList) {
-        const houseExists = existingHouses.some(
-          (house) =>
-            house.link === newHouse.link && house.price === newHouse.price
-        );
-        if (!houseExists) {
-          existingHouses.push(newHouse);
-        }
-      }
-
-      await saveJSON(filePath, existingHouses);
+      await saveJSON(filePath, houseList);
       console.log("Dados atualizados salvos em olxResults.json");
     } catch (err) {
       console.error("Erro ao salvar o arquivo:", err);
