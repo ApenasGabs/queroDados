@@ -1,5 +1,6 @@
 # Scraping grupo olx
-# 🚧 EM CONSTRUCAO🚧  
+[![Scraping OLX and pushing results](https://github.com/ApenasGabs/scraping-grupo-olx/actions/workflows/scrape.yml/badge.svg?branch=main)](https://github.com/ApenasGabs/scraping-grupo-olx/actions/workflows/scrape.yml)
+# 🚧 EM CONSTRUCAO🚧 
 
 Este repositório, **scraping-grupo-olx**, foi desenvolvido para realizar a coleta de dados de anúncios de imóveis nos sites do grupo OLX, especificamente OLX e ZAP Imóveis, na região de Campinas, SP. O objetivo principal é gerar dados para análises, e o projeto é estritamente para fins não comerciais.
 
