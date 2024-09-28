@@ -56,9 +56,15 @@ jobs:
           git config --global user.email ${{ secrets.GIT_USER_EMAIL }}
           git stash -u
           git checkout api --
-          git rebase origin/main
-          git stash pop
+          git rebase origin/main || true 
+          if [ -f data/results/olxResults.json ]; then
+            git checkout --ours data/results/olxResults.json
+          fi
+          if [ -f data/results/zapResults.json ]; then
+            git checkout --ours data/results/zapResults.json
+          fi
           git add data/results
+          git rebase --continue 
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
@@ -67,3 +73,4 @@ jobs:
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
+      
