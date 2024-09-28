@@ -27,6 +27,11 @@ jobs:
       - name: Install Xvfb
         run: sudo apt-get install -y xvfb
 
+      - name: Create data artifact directory if not exists
+        run: |
+          mkdir -p data
+          mkdir -p data/results
+
       - name: Run scraper with Xvfb
         run: |
           Xvfb :99 -ac &
