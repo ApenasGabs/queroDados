@@ -75,6 +75,7 @@ jobs:
       - name: Commit and push changes
         run: |
           cd querocasa
+          git pull
           git add data/results -f
           if git diff --cached --quiet; then
             echo "No changes to commit"
