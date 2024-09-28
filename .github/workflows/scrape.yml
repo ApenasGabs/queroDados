@@ -31,7 +31,6 @@ jobs:
         run: |
           Xvfb :99 -ac &
           export DISPLAY=:99
-          # Executar o scraper
           node scrapers/index.js
 
       - name: Save results folder as an artifact
@@ -45,26 +44,22 @@ jobs:
           git clone https://github.com/${{ secrets.TARGET_REPO_URL }}.git
         env:
           GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
-          
+
       - name: Create data directory if not exists
         run: mkdir -p querocasa/data
+
       - name: Copy results folder to target repository
         run: |
           cp -r data/results querocasa/data
           cd querocasa
           git config --global user.name ${{ secrets.GIT_USER_NAME }}
           git config --global user.email ${{ secrets.GIT_USER_EMAIL }}
-          git stash -u
-          git checkout api --
-          git rebase origin/main || true 
-          if [ -f data/results/olxResults.json ]; then
-            git checkout --ours data/results/olxResults.json
-          fi
-          if [ -f data/results/zapResults.json ]; then
-            git checkout --ours data/results/zapResults.json
-          fi
+
+          git checkout api  
+
+          git merge origin/main --no-ff || true   
+
           git add data/results
-          git rebase --continue 
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
@@ -73,4 +68,3 @@ jobs:
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
-      
