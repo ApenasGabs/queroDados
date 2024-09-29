@@ -65,18 +65,18 @@ jobs:
       - name: Checkout to api branch
         run: |
           cd querocasa
+          
+          # - name: Merge main into api with theirs strategy
+          #   run: |
+          #     cd querocasa
+          #     git merge -X theirs origin/main || true
+          
+          - name: Commit and push changes
+          run: |
+          cd querocasa
           git checkout api || git checkout -b api
-
-      - name: Merge main into api with theirs strategy
-        run: |
-          cd querocasa
-          git merge -X theirs origin/main || true
-
-      - name: Commit and push changes
-        run: |
-          cd querocasa
           git branch --set-upstream-to=origin/api api
-          git pull
+          # git pull
           git add data/results -f
           if git diff --cached --quiet; then
             echo "No changes to commit"
