@@ -88,15 +88,22 @@ jobs:
       - name: Commit and push changes
         run: |
           cd querocasa
+          echo "Checking out branch 'api'"
           git checkout api || git checkout -b api
-          git branch --set-upstream-to=origin/api api
-          git config pull.ff only
-          git pull
-          git add data/results
+          #echo "Setting upstream to 'origin/api'"
+          #git branch --set-upstream-to=origin/api api
+
+          #echo "Pulling latest changes from 'origin/api'"
+          #git pull --rebase || (echo "Rebase failed, attempting to merge" && git merge --no-ff)
+          echo "Adding changes to git"
+          git add data/results -  f
+
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
+            echo "Committing changes"
             git commit -m ":rocket: Update results folder"
+            echo "Pushing changes"
             git push https://${{ secrets.TARGET_REPO_PAT }}@github.com/${{ secrets.TARGET_REPO_URL }}.git HEAD:api
           fi
         env:
