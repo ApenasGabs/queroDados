@@ -38,6 +38,9 @@ jobs:
           export DISPLAY=:99
           node scrapers/index.js
 
+      - name: List results directory
+        run: ls -la data/results
+
       - name: Save results folder as an artifact
         uses: actions/upload-artifact@v4
         with:
