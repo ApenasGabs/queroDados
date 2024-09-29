@@ -19,7 +19,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: results
-          path: data/results
+          path: data
 
       - name: List downloaded artifact
         run: ls -la data/results
