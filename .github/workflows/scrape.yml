@@ -76,7 +76,7 @@ jobs:
           cd querocasa
           git checkout api || git checkout -b api
           git branch --set-upstream-to=origin/api api
-          # git pull
+          git pull
           git add data/results -f
           if git diff --cached --quiet; then
             echo "No changes to commit"
