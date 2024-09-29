@@ -1,0 +1,65 @@
+name: Commit Results
+
+on:
+  workflow_run:
+    workflows: ["Scrape OLX"]
+    types:
+      - completed
+  workflow_dispatch:
+
+jobs:
+  commit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download artifact from previous job
+        uses: actions/download-artifact@v4
+        with:
+          name: results
+          path: data/results
+
+      - name: Clone the target repository
+        run: |
+          git clone https://github.com/${{ secrets.TARGET_REPO_URL }}.git
+        env:
+          GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
+
+      - name: Create data directory if not exists
+        run: mkdir -p querocasa/data
+
+      - name: Copy results folder to target repository
+        run: cp -r data/results querocasa/data
+
+      - name: Configure Git user
+        run: |
+          cd querocasa
+          git config --global user.name "${{ secrets.GIT_USER_NAME }}"
+          git config --global user.email "${{ secrets.GIT_USER_EMAIL }}"
+
+      - name: Commit and push changes
+        run: |
+          cd querocasa
+          git checkout api || git checkout -b api
+          git branch --set-upstream-to=origin/api api
+          git pull
+          git add data/results -f
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m ":rocket: Update results folder"
+            git push https://${{ secrets.TARGET_REPO_PAT }}@github.com/${{ secrets.TARGET_REPO_URL }}.git HEAD:api
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
+      # - name: Checkout to api branch
+      #   run: |
+      #     cd querocasa
+
+      # - name: Merge main into api with theirs strategy
+      #   run: |
+      #     cd querocasa
+      #     git merge -X theirs origin/main || true
+  
