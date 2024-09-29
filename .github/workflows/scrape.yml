@@ -62,17 +62,17 @@ jobs:
           git config --global user.name "${{ secrets.GIT_USER_NAME }}"
           git config --global user.email "${{ secrets.GIT_USER_EMAIL }}"
 
-      - name: Checkout to api branch
+      # - name: Checkout to api branch
+      #   run: |
+      #     cd querocasa
+
+      # - name: Merge main into api with theirs strategy
+      #   run: |
+      #     cd querocasa
+      #     git merge -X theirs origin/main || true
+
+      - name: Commit and push changes
         run: |
-          cd querocasa
-          
-          # - name: Merge main into api with theirs strategy
-          #   run: |
-          #     cd querocasa
-          #     git merge -X theirs origin/main || true
-          
-          - name: Commit and push changes
-          run: |
           cd querocasa
           git checkout api || git checkout -b api
           git branch --set-upstream-to=origin/api api
