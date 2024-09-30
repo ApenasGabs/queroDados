@@ -66,6 +66,7 @@ jobs:
           cd querocasa
           git fetch
           git checkout api || git checkout -b api
+          git pull --rebase
         env:
           GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
 
