@@ -56,7 +56,10 @@ const getHouseList = async (page) => {
       const house = {
         address,
         description,
-        images: [images.includes("notFound") ? null : images],
+        images:
+          images.includes("notFound") || images.includes("no-photo")
+            ? []
+            : [images],
         link,
         price,
         publishDate,
