@@ -1,4 +1,4 @@
-name: Scrape and Commit
+name: Scrape OLX and push results
 
 on:
   push:
@@ -11,6 +11,8 @@ on:
 jobs:
   scrape:
     runs-on: ubuntu-latest
+    outputs:
+      artifact-path: ${{ steps.upload-artifact.outputs.artifact-path }}
 
     steps:
       - name: Checkout repository
@@ -38,55 +40,60 @@ jobs:
           export DISPLAY=:99
           node scrapers/index.js
 
-      - name: List results directory
-        run: ls -la data/results
-
       - name: Save results folder as an artifact
+        id: upload-artifact
         uses: actions/upload-artifact@v4
         with:
           name: results
           path: data/results
 
-  commit:
-    needs: scrape
+  update-repo:
     runs-on: ubuntu-latest
+    needs: scrape
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: results
+          path: data/results
+
       - name: Clone the target repository
         run: |
-          git clone https://github.com/${{ secrets.TARGET_REPO_URL }}.git
+          git clone https://github.com/${{ secrets.TARGET_REPO_URL }}.git querocasa
         env:
           GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
 
-      - name: Change directory to target repository and checkout branch 'api'
+      - name: Checkout to api branch
         run: |
           cd querocasa
-          git fetch
-          git checkout api || git checkout -b api
-          git pull --rebase
-        env:
-          GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
+          git fetch origin
+          git checkout -b api origin/api
 
       - name: Create data directory if not exists
         run: mkdir -p querocasa/data
 
-      - name: Download artifact from previous job
-        uses: actions/download-artifact@v4
-        with:
-          name: results
-          path: querocasa/data/results
-
-      - name: List downloaded artifact
-        run: ls -la querocasa/data/results
+      - name: Copy results folder to target repository
+        run: cp -r data/results querocasa/data
 
       - name: Configure Git user
         run: |
           cd querocasa
           git config --global user.name "${{ secrets.GIT_USER_NAME }}"
           git config --global user.email "${{ secrets.GIT_USER_EMAIL }}"
+
+      - name: Merge main into api with theirs strategy
+        run: |
+          cd querocasa
+          git merge -X theirs origin/main || true
+
+      - name: Set upstream branch for api
+        run: |
+          cd querocasa
+          git branch --set-upstream-to=origin/api api
 
       - name: Commit and push changes
         run: |
