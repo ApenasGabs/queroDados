@@ -55,29 +55,31 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Create data/results directory
-        run: mkdir -p data/results
-
-      - name: Download artifact from previous job
-        uses: actions/download-artifact@v4
-        with:
-          name: results
-          path: data/results
-
-      - name: List downloaded artifact
-        run: ls -la data/results
-
       - name: Clone the target repository
         run: |
           git clone https://github.com/${{ secrets.TARGET_REPO_URL }}.git
         env:
           GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
 
+      - name: Change directory to target repository and checkout branch 'api'
+        run: |
+          cd querocasa
+          git fetch
+          git checkout api || git checkout -b api
+        env:
+          GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
+
       - name: Create data directory if not exists
         run: mkdir -p querocasa/data
 
-      - name: Copy results folder to target repository
-        run: cp -r data/results querocasa/data
+      - name: Download artifact from previous job
+        uses: actions/download-artifact@v4
+        with:
+          name: results
+          path: querocasa/data/results
+
+      - name: List downloaded artifact
+        run: ls -la querocasa/data/results
 
       - name: Configure Git user
         run: |
@@ -88,15 +90,8 @@ jobs:
       - name: Commit and push changes
         run: |
           cd querocasa
-          echo "Checking out branch 'api'"
-          git checkout api || git checkout -b api
-          #echo "Setting upstream to 'origin/api'"
-          #git branch --set-upstream-to=origin/api api
-
-          #echo "Pulling latest changes from 'origin/api'"
-          #git pull --rebase || (echo "Rebase failed, attempting to merge" && git merge --no-ff)
           echo "Adding changes to git"
-          git add data/results -  f
+          git add data/results -f
 
           if git diff --cached --quiet; then
             echo "No changes to commit"
