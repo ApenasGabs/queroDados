@@ -12,7 +12,7 @@ jobs:
   olx-scraper:
     runs-on: ubuntu-latest
     outputs:
-      artifact-path: ${{ steps.upload-artifact.outputs.artifact-path }}
+      artifact-path: ${{ steps.upload-olx-artifact.outputs.artifact-path }}
 
     steps:
       - name: Checkout repository
@@ -30,9 +30,7 @@ jobs:
         run: sudo apt-get install -y xvfb
 
       - name: Create data artifact directory if not exists
-        run: |
-          mkdir -p data
-          mkdir -p data/results
+        run: mkdir -p data/results
 
       - name: Run OLX scraper
         run: |
@@ -45,12 +43,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: olx-results
-          path: data/results
+          path: data/results/*.json # Salva apenas os arquivos .json diretamente
 
   zap-scraper:
     runs-on: ubuntu-latest
     outputs:
-      artifact-path: ${{ steps.upload-artifact.outputs.artifact-path }}
+      artifact-path: ${{ steps.upload-zap-artifact.outputs.artifact-path }}
 
     steps:
       - name: Checkout repository
@@ -68,9 +66,7 @@ jobs:
         run: sudo apt-get install -y xvfb
 
       - name: Create data artifact directory if not exists
-        run: |
-          mkdir -p data
-          mkdir -p data/results
+        run: mkdir -p data/results
 
       - name: Run Zap scraper
         run: |
@@ -83,7 +79,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: zap-results
-          path: data/results
+          path: data/results/*.json
 
   update-repo:
     runs-on: ubuntu-latest
@@ -97,13 +93,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: olx-results
-          path: data/results/olx
+          path: data/results
 
       - name: Download Zap artifact
         uses: actions/download-artifact@v4
         with:
           name: zap-results
-          path: data/results/zap
+          path: data/results
 
       - name: Clone the target repository
         run: |
