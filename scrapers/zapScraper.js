@@ -30,9 +30,9 @@ const getHouseList = async (page) => {
           'div[data-cy="rp-cardProperty-image-img"] ul li img'
         )
       ).map((img) => img.src);
-      const price = card.querySelector(
-        'div[data-cy="rp-cardProperty-price-txt"] p'
-      )?.innerText;
+      const price = card
+        .querySelector('div[data-cy="rp-cardProperty-price-txt"] p')
+        ?.innerText?.replace(/[R$\s.]/g, "");
 
       const address = card.querySelector(
         'h2[data-cy="rp-cardProperty-location-txt"]'
@@ -101,8 +101,7 @@ module.exports = async () => {
 
       houseList.push(...newHouses);
 
-      const lastHighPrice =
-        newHouses[newHouses.length - 1]?.price?.replace(/[R$\s.]/g, "") || 0;
+      const lastHighPrice = newHouses[newHouses.length - 1]?.price || 0;
 
       if (parseInt(lastHighPrice) >= maxPrice) {
         console.log("preço final chegou: ", lastHighPrice);

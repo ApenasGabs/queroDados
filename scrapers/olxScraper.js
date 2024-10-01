@@ -37,9 +37,9 @@ const getHouseList = async (page) => {
           return acc;
         }, []);
       const images = li.querySelector("img").src;
-      const price = li.querySelector(
-        'h3[data-ds-component="DS-Text"]'
-      )?.innerText;
+      const price = li
+        .querySelector('h3[data-ds-component="DS-Text"]')
+        ?.innerText?.replace(/[R$\s.]/g, "");
 
       const address = li.querySelector(
         ".olx-ad-card__location-date-container > p"
@@ -102,8 +102,7 @@ module.exports = async () => {
 
       houseList.push(...newHouses);
 
-      const lastHighPrice =
-        newHouses[newHouses.length - 1]?.price?.replace(/[R$\s.]/g, "") || 0;
+      const lastHighPrice = newHouses[newHouses.length - 1]?.price || 0;
 
       if (parseInt(lastHighPrice) >= maxPrice) {
         hasNextPage = false;
