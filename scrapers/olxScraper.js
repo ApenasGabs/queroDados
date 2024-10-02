@@ -1,6 +1,6 @@
 const puppeteer = require("puppeteer");
 const path = require("path");
-const { saveJSON, loadJSON } = require("../utils/fileHelper");
+const { saveJSON } = require("../utils/fileHelper");
 const { convertDate } = require("../utils/dateHelper");
 const config = require("../config/olxConfig");
 const { maxPrice } = require("../config/defaultConfig");
@@ -114,6 +114,10 @@ module.exports = async () => {
     console.log("Total de casas encontradas:", houseList.length);
   } catch (error) {
     console.error("Erro durante o scraping:", error);
+    await page.screenshot({
+      path: `data/results/error_screenshot_${Date.now()}.png`,
+      fullPage: true,
+    });
   } finally {
     await browser.close();
 

@@ -114,6 +114,10 @@ module.exports = async () => {
     console.log("Total de casas encontradas:", houseList.length);
   } catch (error) {
     console.error("Erro durante o scraping:", error);
+    await page.screenshot({
+      path: `data/results/error_screenshot_${Date.now()}.png`,
+      fullPage: true,
+    });
   } finally {
     const filePath = path.join(__dirname, "../data/results/zapResults.json");
 
