@@ -4,7 +4,7 @@ const { saveJSON } = require("../utils/fileHelper");
 const { convertDate } = require("../utils/dateHelper");
 const config = require("../config/olxConfig");
 const { maxPrice } = require("../config/defaultConfig");
-
+const { simulateInteractions } = require("../utils/interactionsHelper");
 const attributeMapping = {
   quartos: "numberOfRooms",
   "metros quadrados": "floorSize",
@@ -14,6 +14,7 @@ const attributeMapping = {
 
 const getHouseList = async (page) => {
   return await page.evaluate((attributeMapping) => {
+    await simulateInteractions(page);
     const filteredItems = Array.from(
       document.querySelectorAll(
         'section[data-ds-component="DS-AdCard"].olx-ad-card--horizontal'
