@@ -13,7 +13,7 @@ const attributeMapping = {
 };
 
 const getHouseList = async (page) => {
-  return await page.evaluate((attributeMapping) => {
+  return await page.evaluate(async(attributeMapping) => {
     await simulateInteractions(page);
     const filteredItems = Array.from(
       document.querySelectorAll(
