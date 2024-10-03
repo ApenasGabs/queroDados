@@ -94,7 +94,7 @@ module.exports = async () => {
 
       if (newHouses.length === 0) {
         console.log("Nenhuma casa encontrada nesta página.");
-        break;
+        throw new Error("A lista de casas está vazia.");
       }
       newHouses.forEach((house) => {
         house.publishDate = convertDate(house.publishDate);
