@@ -91,7 +91,7 @@ module.exports = async () => {
           timeout: 30000,
         }
       );
-      await simulateInteractions(page);
+      await simulateInteractions(page, "zapInteractionData");
 
       const newHouses = await getHouseList(page);
       console.log("newHouses: ", newHouses);

@@ -13,7 +13,7 @@ const attributeMapping = {
 };
 
 const getHouseList = async (page) => {
-  await simulateInteractions(page);
+  await simulateInteractions(page, "olxInteractionData");
   return await page.evaluate(async (attributeMapping) => {
     const filteredItems = Array.from(
       document.querySelectorAll(
