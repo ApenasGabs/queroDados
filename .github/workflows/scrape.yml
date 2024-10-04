@@ -41,12 +41,14 @@ jobs:
       - name: Save OLX results as an artifact
         id: upload-olx-artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: olx-results
           path: data/results/*.json
 
       - name: Save error screenshots as an artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: error-screenshots
           path: data/results/*.png
@@ -83,12 +85,14 @@ jobs:
       - name: Save Zap results as an artifact
         id: upload-zap-artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: zap-results
           path: data/results/*.json
 
       - name: Save error screenshots as an artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: error-screenshots
           path: data/results/*.png
@@ -103,12 +107,14 @@ jobs:
 
       - name: Download OLX artifact
         uses: actions/download-artifact@v4
+        if: steps.upload-olx-artifact.outputs.artifact-path != ''
         with:
           name: olx-results
           path: data/results
 
       - name: Download Zap artifact
         uses: actions/download-artifact@v4
+        if: steps.upload-zap-artifact.outputs.artifact-path != ''
         with:
           name: zap-results
           path: data/results
@@ -129,7 +135,7 @@ jobs:
         run: mkdir -p querocasa/data
 
       - name: Copy results folder to target repository
-        run: cp -r data/results querocasa/data
+        run: cp -r data/results querocasa/data || true
 
       - name: Configure Git user
         run: |
