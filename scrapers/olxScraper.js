@@ -13,8 +13,8 @@ const attributeMapping = {
 };
 
 const getHouseList = async (page) => {
-  return await page.evaluate(async(attributeMapping) => {
-    await simulateInteractions(page);
+  await simulateInteractions(page);
+  return await page.evaluate(async (attributeMapping) => {
     const filteredItems = Array.from(
       document.querySelectorAll(
         'section[data-ds-component="DS-AdCard"].olx-ad-card--horizontal'
