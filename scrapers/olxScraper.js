@@ -73,17 +73,20 @@ const getHouseList = async (page) => {
 };
 
 module.exports = async () => {
-  const browser = await puppeteer.launch({
-    headless: false,
-    defaultViewport: null,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
   const houseList = [];
-  const page = await browser.newPage();
-
+  let browser;
+  let page;
   try {
     let pageNumber = 1;
     let hasNextPage = true;
+    const browserProps = {
+      headless: false,
+      defaultViewport: null,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    };
+
+    browser = await puppeteer.launch(browserProps);
+    page = await browser.newPage();
 
     while (hasNextPage) {
       console.log(`Acessando página ${pageNumber}`);
@@ -113,22 +116,25 @@ module.exports = async () => {
     }
 
     console.log("Total de casas encontradas:", houseList.length);
-  } catch (error) {
-    console.error("Erro durante o scraping:", error);
-    await page.screenshot({
-      path: `data/results/error_screenshot_${Date.now()}.png`,
-      fullPage: true,
-    });
-  } finally {
-    await browser.close();
 
-    const filePath = path.join(__dirname, "../data/results/olxResults.json");
-
-    try {
+    if (houseList.length > 0) {
+      const filePath = path.join(__dirname, "../data/results/olxResults.json");
       await saveJSON(filePath, houseList);
       console.log("Dados atualizados salvos em olxResults.json");
-    } catch (err) {
-      console.error("Erro ao salvar o arquivo:", err);
+    } else {
+      console.log("Nenhuma casa encontrada. JSON não salvo.");
+    }
+  } catch (error) {
+    console.error("Erro durante o scraping:", error);
+    if (page) {
+      await page.screenshot({
+        path: `data/results/error_screenshot_${Date.now()}.png`,
+        fullPage: true,
+      });
+    }
+  } finally {
+    if (browser) {
+      await browser.close();
     }
   }
 };

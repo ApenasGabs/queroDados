@@ -62,6 +62,8 @@ const getHouseList = async (page) => {
 
 module.exports = async () => {
   const houseList = [];
+  let browser;
+  let page;
   try {
     let pageNumber = 1;
     let hasNextPage = true;
@@ -75,8 +77,8 @@ module.exports = async () => {
       ],
     };
     while (hasNextPage) {
-      const browser = await puppeteer.launch(browserProps);
-      const page = await browser.newPage();
+      browser = await puppeteer.launch(browserProps);
+      page = await browser.newPage();
       console.log(`Acessando página ${pageNumber}`);
       const url = createTargetURL({ pagina: pageNumber });
       await page.goto(url, {
@@ -96,7 +98,7 @@ module.exports = async () => {
 
       if (newHouses.length === 0) {
         console.log("Nenhuma casa encontrada nesta página.");
-        break;
+        throw new Error("A lista de casas está vazia.");
       }
 
       houseList.push(...newHouses);
@@ -112,20 +114,25 @@ module.exports = async () => {
     }
 
     console.log("Total de casas encontradas:", houseList.length);
-  } catch (error) {
-    console.error("Erro durante o scraping:", error);
-    await page.screenshot({
-      path: `data/results/error_screenshot_${Date.now()}.png`,
-      fullPage: true,
-    });
-  } finally {
-    const filePath = path.join(__dirname, "../data/results/zapResults.json");
 
-    try {
+    if (houseList.length > 0) {
+      const filePath = path.join(__dirname, "../data/results/zapResults.json");
       await saveJSON(filePath, houseList);
       console.log("Dados atualizados salvos em zapResults.json");
-    } catch (err) {
-      console.error("Erro ao salvar o arquivo:", err);
+    } else {
+      console.log("Nenhuma casa encontrada. JSON não salvo.");
+    }
+  } catch (error) {
+    console.error("Erro durante o scraping:", error);
+    if (page) {
+      await page.screenshot({
+        path: `data/results/error_screenshot_${Date.now()}.png`,
+        fullPage: true,
+      });
+    }
+  } finally {
+    if (browser) {
+      await browser.close();
     }
   }
 };
