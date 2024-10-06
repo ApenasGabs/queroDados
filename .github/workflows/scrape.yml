@@ -139,14 +139,11 @@ jobs:
         run: |
           cd querocasa
           echo "Adding changes to git"
-          git add . -f
+          git add . 
 
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-          else
-            echo "Committing changes"
-            git commit -m ":rocket: Update results folder"
-            echo "Pushing changes"
-            git push https://${{ secrets.TARGET_REPO_PAT }}@github.com/${{ secrets.TARGET_REPO_URL }}.git HEAD:api
+          echo "Committing changes"
+          git commit -m ":rocket: Update results folder"
+          echo "Pushing changes"
+          git push https://${{ secrets.TARGET_REPO_PAT }}@github.com/${{ secrets.TARGET_REPO_URL }}.git HEAD:api
         env:
           GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
