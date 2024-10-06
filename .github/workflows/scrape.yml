@@ -119,7 +119,9 @@ jobs:
         run: |
           cd querocasa
           git branch --set-upstream-to=origin/api api
-
+          git push https://${{ secrets.TARGET_REPO_PAT }}@github.com/${{ secrets.TARGET_REPO_URL }}.git HEAD:api
+        env:
+          GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
   update-coordinates:
     runs-on: ubuntu-latest
     needs: download-and-update-repo
