@@ -136,7 +136,9 @@ jobs:
           node-version: "20"
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          npm install
+          ls
 
       - name: Download OLX artifact
         uses: actions/download-artifact@v4
@@ -155,8 +157,11 @@ jobs:
 
       - name: Update coordinates
         run: |
+          ls
           cd querocasa
+          ls
           node scripts/updateCoordinates.js
+          ls
 
   commit-and-push:
     runs-on: ubuntu-latest
