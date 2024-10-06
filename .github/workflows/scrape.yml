@@ -157,11 +157,14 @@ jobs:
 
       - name: Update coordinates
         run: |
+          echo "Current directory"
           ls
+          echo "Changing directory"
           cd querocasa
+          echo "querocasa folder"
           ls
-          node scripts/updateCoordinates.js
-          ls
+          echo "Updating coordinates"
+          node querocasa/scripts/updateCoordinates.js
 
   commit-and-push:
     runs-on: ubuntu-latest
