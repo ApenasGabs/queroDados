@@ -38,18 +38,12 @@ jobs:
           export DISPLAY=:99
           node scrapers/index.js olx
 
-      - name: Save OLX results as an artifact
+      - name: Save OLX results and screenshots as an artifact
         id: upload-olx-artifact
         uses: actions/upload-artifact@v4
         with:
           name: olx-results
-          path: data/results/*.json
-
-      - name: Save error screenshots as an artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: error-screenshots
-          path: data/results/*.png
+          path: data/results
 
   zap-scraper:
     runs-on: ubuntu-latest
@@ -80,18 +74,12 @@ jobs:
           export DISPLAY=:99
           node scrapers/index.js zap
 
-      - name: Save Zap results as an artifact
+      - name: Save Zap results and screenshots as an artifact
         id: upload-zap-artifact
         uses: actions/upload-artifact@v4
         with:
           name: zap-results
-          path: data/results/*.json
-
-      - name: Save error screenshots as an artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: error-screenshots
-          path: data/results/*.png
+          path: data/results
 
   update-repo:
     runs-on: ubuntu-latest
@@ -129,7 +117,7 @@ jobs:
         run: mkdir -p querocasa/data
 
       - name: Copy results folder to target repository
-        run: cp -r data/results querocasa/data
+        run: cp -r data/results querocasa/data || true
 
       - name: Configure Git user
         run: |
@@ -150,15 +138,15 @@ jobs:
       - name: Commit and push changes
         run: |
           cd querocasa
-          if [ -n "$(ls data/results/*.json 2>/dev/null)" ] || [ -n "$(ls data/results/*.png 2>/dev/null)" ]; then
-            echo "Adicionando arquivos JSON e/ou prints ao git"
-            git add data/results/*.json 2>/dev/null || true
-            git add data/results/*.png 2>/dev/null || true
-            git commit -m ":rocket: Update results folder with new data or error screenshots"
-            echo "Fazendo push das mudanças"
-            git push https://${{ secrets.TARGET_REPO_PAT }}@github.com/${{ secrets.TARGET_REPO_URL }}.git HEAD:api
+          echo "Adding changes to git"
+          git add data/results -f
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
           else
-            echo "Nenhum arquivo JSON ou print encontrado. Pulando commit."
-          fi
+            echo "Committing changes"
+            git commit -m ":rocket: Update results folder"
+            echo "Pushing changes"
+            git push https://${{ secrets.TARGET_REPO_PAT }}@github.com/${{ secrets.TARGET_REPO_URL }}.git HEAD:api
         env:
           GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
