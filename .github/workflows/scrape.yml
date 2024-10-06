@@ -139,7 +139,7 @@ jobs:
         run: |
           cd querocasa
           echo "Adding changes to git"
-          git add data/results -f
+          git add . -f
 
           if git diff --cached --quiet; then
             echo "No changes to commit"
