@@ -141,6 +141,7 @@ jobs:
           echo "Changing directory"
           cd querocasa
           ls
+          npm install
           echo "---------------------"
           echo "Running updateCoordinates.js"
           node scripts/updateCoordinates.js || echo "Script not found"
