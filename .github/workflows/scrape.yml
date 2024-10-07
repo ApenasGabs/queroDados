@@ -120,34 +120,6 @@ jobs:
           cd querocasa
           git branch --set-upstream-to=origin/api api
           git push https://${{ secrets.TARGET_REPO_PAT }}@github.com/${{ secrets.TARGET_REPO_URL }}.git HEAD:api
-        env:
-          GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
-  update-coordinates:
-    runs-on: ubuntu-latest
-    needs: download-and-update-repo
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install dependencies
-        run: |
-          npm install
-          echo "Root directory after npm install:"
-          ls
-          echo "Checking querocasa directory:"
-          ls querocasa || git clone https://github.com/${{ secrets.TARGET_REPO_URL }}.git
-          cd querocasa
-          git fetch origin
-          git checkout -b api origin/api
-          npm install
-          env:
-            GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
 
       - name: Download OLX artifact
         uses: actions/download-artifact@v4
@@ -161,16 +133,6 @@ jobs:
           name: zap-results
           path: querocasa/data/results
 
-      - name: Copy results folder to target repository
-        run: cp -r querocasa/data/results querocasa/data || true
-
-      - name: Check for scripts folder before running
-        run: |
-          echo "Checking querocasa directory contents again:"
-          ls querocasa || echo "No querocasa directory found"
-          echo "Checking for scripts folder inside querocasa:"
-          ls querocasa/scripts || echo "No scripts folder found"
-
       - name: Update coordinates
         run: |
           echo "Current directory"
@@ -182,23 +144,12 @@ jobs:
           echo "---------------------"
           echo "Running updateCoordinates.js"
           node scripts/updateCoordinates.js || echo "Script not found"
-          echo "---------------------"
-
-  commit-and-push:
-    runs-on: ubuntu-latest
-    needs: update-coordinates
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Commit and push changes
         run: |
           cd querocasa
           ls
           echo "Adding changes to git"
           git add . 
-
           echo "Committing changes"
           git commit -m ":rocket: Update results folder"
           echo "Pushing changes"
