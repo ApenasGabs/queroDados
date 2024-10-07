@@ -141,7 +141,13 @@ jobs:
           echo "Root directory after npm install:"
           ls
           echo "Checking querocasa directory:"
-          ls querocasa || echo "No querocasa directory found"
+          ls querocasa || git clone https://github.com/${{ secrets.TARGET_REPO_URL }}.git
+          cd querocasa
+          git fetch origin
+          git checkout -b api origin/api
+          npm install
+          env:
+            GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
 
       - name: Download OLX artifact
         uses: actions/download-artifact@v4
@@ -169,10 +175,14 @@ jobs:
         run: |
           echo "Current directory"
           ls
+          echo "---------------------"
           echo "Changing directory"
           cd querocasa
+          ls
+          echo "---------------------"
           echo "Running updateCoordinates.js"
           node scripts/updateCoordinates.js || echo "Script not found"
+          echo "---------------------"
 
   commit-and-push:
     runs-on: ubuntu-latest
@@ -185,6 +195,7 @@ jobs:
       - name: Commit and push changes
         run: |
           cd querocasa
+          ls
           echo "Adding changes to git"
           git add . 
 
