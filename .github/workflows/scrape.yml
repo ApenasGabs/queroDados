@@ -144,7 +144,7 @@ jobs:
           npm install
           echo "---------------------"
           echo "Running updateCoordinates.js"
-          node scripts/updateCoordinates.js || echo "Script not found"
+          node scripts/updateCoordinates.js ${{ secrets.GEOCODE_HERE_API_KEY }} || echo "Script not found"
       - name: Commit and push changes
         run: |
           cd querocasa
