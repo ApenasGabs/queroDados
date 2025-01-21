@@ -3,7 +3,6 @@ const path = require("path");
 const { saveJSON } = require("../utils/fileHelper");
 const { convertDate } = require("../utils/dateHelper");
 const config = require("../config/olxConfig");
-const { maxPrice } = require("../config/defaultConfig");
 // const { simulateInteractions } = require("../utils/interactionsHelper");
 const attributeMapping = {
   quartos: "numberOfRooms",
@@ -72,7 +71,7 @@ const getHouseList = async (page) => {
   }, attributeMapping);
 };
 
-module.exports = async () => {
+module.exports = async (maxPrice) => {
   const houseList = [];
   let browser;
   let page;

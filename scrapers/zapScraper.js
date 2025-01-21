@@ -3,7 +3,6 @@ const fs = require("fs").promises;
 const path = require("path");
 const { saveJSON, loadJSON } = require("../utils/fileHelper");
 const { createTargetURL } = require("../config/zapConfig");
-const { maxPrice } = require("../config/defaultConfig");
 const { simulateInteractions } = require("../utils/interactionsHelper");
 
 const getHouseList = async (page) => {
@@ -60,7 +59,8 @@ const getHouseList = async (page) => {
   });
 };
 
-module.exports = async () => {
+module.exports = async (maxPrice) => {
+  console.log("maxPrice: ", maxPrice);
   const houseList = [];
   let browser;
   let page;

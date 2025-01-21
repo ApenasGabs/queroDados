@@ -36,7 +36,7 @@ jobs:
         run: |
           Xvfb :99 -ac &
           export DISPLAY=:99
-          node scrapers/index.js olx
+          node scrapers/index.js olx {{ secrets.MAX_PRICE }}
 
       - name: Save OLX results and screenshots as an artifact
         id: upload-olx-artifact
@@ -72,7 +72,7 @@ jobs:
         run: |
           Xvfb :99 -ac &
           export DISPLAY=:99
-          node scrapers/index.js zap
+          node scrapers/index.js zap {{ secrets.MAX_PRICE }}
 
       - name: Save Zap results and screenshots as an artifact
         id: upload-zap-artifact
