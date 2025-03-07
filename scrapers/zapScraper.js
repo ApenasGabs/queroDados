@@ -34,7 +34,7 @@ const getHouseList = async (page) => {
         ?.innerText?.replace(/[R$\s.]/g, "");
 
       const address = card.querySelector(
-        'h2[data-cy="rp-cardProperty-location-txt"]'
+        '[data-cy="rp-cardProperty-location-txt"]'
       )?.innerText;
       const duplicatedButton = card.querySelector(
         'button[data-cy="rp-cardProperty-duplicated-button"]'
