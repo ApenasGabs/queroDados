@@ -37,13 +37,33 @@ const getHouseList = async (page) => {
         '[data-cy="rp-cardProperty-location-txt"]'
       )?.innerText;
       const duplicatedButton = card.querySelector(
-        'button[data-cy="rp-cardProperty-duplicated-button"]'
+        'button[data-cy="listing-card-deduplicated-button"]'
       );
-      if (duplicatedButton) {
-        console.log("duplicatedButton: ", duplicatedButton);
-      }
+      const getDuplicatedLinks = () => {
+        duplicatedButton.click();
 
-      const link = li.querySelector("a")?.href;
+        const linksSection = card.querySelector(
+          'section[data-cy="deduplication-modal-list-step"]'
+        );
+        const links = Array.from(linksSection.querySelectorAll("a")).map(
+          (a) => a.href
+        );
+
+        const escKeyEvent = new KeyboardEvent("keydown", {
+          key: "Escape",
+          code: "Escape",
+          keyCode: 27,
+          which: 27,
+          bubbles: true,
+          cancelable: true,
+        });
+        document.dispatchEvent(escKeyEvent);
+        return links[0];
+      };
+
+      const link = duplicatedButton
+        ? getDuplicatedLinks()
+        : li.querySelector("a")?.href;
 
       const house = {
         address,
