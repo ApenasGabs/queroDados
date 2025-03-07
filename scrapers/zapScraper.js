@@ -39,44 +39,72 @@ const getHouseList = async (page) => {
       const duplicatedButton = card.querySelector(
         'button[data-cy="listing-card-deduplicated-button"]'
       );
-      const getDuplicatedLinks = () => {
-        duplicatedButton.click();
 
-        const linksSection = card.querySelector(
-          'section[data-cy="deduplication-modal-list-step"]'
-        );
-        const links = Array.from(linksSection.querySelectorAll("a")).map(
-          (a) => a.href
-        );
+      const hasDuplicates = duplicatedButton !== null;
 
-        const escKeyEvent = new KeyboardEvent("keydown", {
-          key: "Escape",
-          code: "Escape",
-          keyCode: 27,
-          which: 27,
-          bubbles: true,
-          cancelable: true,
-        });
-        document.dispatchEvent(escKeyEvent);
-        return links[0];
-      };
+      const liId = `house-item-${idx}`;
+      li.id = liId;
 
-      const link = duplicatedButton
-        ? getDuplicatedLinks()
-        : li.querySelector("a")?.href;
+      const simpleLink = li.querySelector("a")?.href;
 
       const house = {
         address,
         description,
         images,
-        link,
+        link: simpleLink,
         price,
+        hasDuplicates,
+        elementId: liId,
       };
-      console.log(`${idx + 1} ${house}`);
 
       return house;
     });
   });
+};
+
+const processDuplicatedLinks = async (page, houses) => {
+  for (let i = 0; i < houses.length; i++) {
+    const house = houses[i];
+    if (house.hasDuplicates) {
+      try {
+        await page.waitForSelector(
+          `#${house.elementId} button[data-cy="listing-card-deduplicated-button"]`
+        );
+        await page.click(
+          `#${house.elementId} button[data-cy="listing-card-deduplicated-button"]`
+        );
+
+        await page.waitForSelector(
+          'section[data-cy="deduplication-modal-list-step"]',
+          { timeout: 5000 }
+        );
+
+        const links = await page.evaluate(() => {
+          const linksSection = document.querySelector(
+            'section[data-cy="deduplication-modal-list-step"]'
+          );
+          if (!linksSection) return [];
+          return Array.from(linksSection.querySelectorAll("a")).map(
+            (a) => a.href
+          );
+        });
+
+        if (links && links.length > 0) {
+          house.link = links[0];
+        }
+
+        await page.keyboard.press("Escape");
+
+        await page.waitForTimeout(500);
+      } catch (error) {
+        console.log(
+          `Erro ao processar duplicados para casa ${i}:`,
+          error.message
+        );
+      }
+    }
+  }
+  return houses;
 };
 
 module.exports = async (maxPrice) => {
@@ -113,7 +141,10 @@ module.exports = async (maxPrice) => {
       );
       await simulateInteractions(page, "zapInteractionData");
 
-      const newHouses = await getHouseList(page);
+      let newHouses = await getHouseList(page);
+
+      newHouses = await processDuplicatedLinks(page, newHouses);
+
       console.log("newHouses: ", newHouses);
 
       if (newHouses.length === 0) {
