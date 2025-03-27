@@ -3,7 +3,7 @@ const path = require("path");
 const { saveJSON } = require("../utils/fileHelper");
 const { convertDate } = require("../utils/dateHelper");
 const config = require("../config/olxConfig");
-const { generateUniqueId } = require("../utils/idGenerator");
+const { generatePropertyId } = require("../utils/idGenerator");
 
 // const { simulateInteractions } = require("../utils/interactionsHelper");
 const attributeMapping = {
@@ -56,7 +56,7 @@ const getHouseList = async (page) => {
       )?.innerText;
 
       const house = {
-        id: generateUniqueId(),
+        id: generatePropertyId(),
         address,
         description,
         images:
