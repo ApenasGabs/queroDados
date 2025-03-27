@@ -2,7 +2,6 @@ const puppeteer = require("puppeteer");
 const fs = require("fs").promises;
 const path = require("path");
 const { saveJSON, loadJSON } = require("../utils/fileHelper");
-const { generatePropertyId } = require("../utils/idGenerator");
 const { createTargetURL } = require("../config/zapConfig");
 const { simulateInteractions } = require("../utils/interactionsHelper");
 
@@ -47,7 +46,13 @@ const getHouseList = async (page) => {
       li.id = liId;
 
       const simpleLink = li.querySelector("a")?.href;
+      function generatePropertyId() {
+        const now = new Date();
+        const timestamp = now.getTime();
+        const randomSuffix = Math.floor(Math.random() * 1000);
 
+        return `prop_${timestamp}_${randomSuffix}`;
+      }
       const house = {
         id: generatePropertyId(),
         address,
