@@ -132,7 +132,20 @@ jobs:
         with:
           name: zap-results
           path: querocasa/data/results
-
+      - name: Validate scraped data
+        run: |
+          echo "Validando dados coletados..."
+          cd querocasa
+          if ! node scripts/validateData.js; then
+          echo "::warning::Alguns problemas foram encontrados na validação"
+          # Continua mesmo com erros, mas marca como warning
+          fi
+      - name: Merge and update results
+        run: |
+          echo "Mesclando resultados..."
+          cd querocasa
+          node scripts/mergeResults.js
+          echo "Resultados mesclados com sucesso!"
       - name: Update coordinates
         run: |
           echo "Current directory"
@@ -148,12 +161,18 @@ jobs:
       - name: Commit and push changes
         run: |
           cd querocasa
-          ls
-          echo "Adding changes to git"
-          git add . 
-          echo "Committing changes"
-          git commit -m ":rocket: Update results folder"
-          echo "Pushing changes"
-          git push https://${{ secrets.TARGET_REPO_PAT }}@github.com/${{ secrets.TARGET_REPO_URL }}.git HEAD:api
+          echo "Preparando para commit..."
+          git add .
+
+          echo "Verificando mudanças..."
+          if git diff-index --quiet HEAD --; then
+            echo "Nenhuma mudança detectada."
+          else
+            echo "Efetuando commit das mudanças..."
+            git commit -m ":rocket: Atualização automática de dados [$(date +'%Y-%m-%d %H:%M')]"
+            
+            echo "Efetuando push para o repositório..."
+            git push https://${{ secrets.TARGET_REPO_PAT }}@github.com/${{ secrets.TARGET_REPO_URL }}.git HEAD:api
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}

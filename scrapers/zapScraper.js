@@ -2,6 +2,7 @@ const puppeteer = require("puppeteer");
 const fs = require("fs").promises;
 const path = require("path");
 const { saveJSON, loadJSON } = require("../utils/fileHelper");
+const { generateUniqueId } = require("../utils/idGenerator");
 const { createTargetURL } = require("../config/zapConfig");
 const { simulateInteractions } = require("../utils/interactionsHelper");
 
@@ -48,12 +49,14 @@ const getHouseList = async (page) => {
       const simpleLink = li.querySelector("a")?.href;
 
       const house = {
+        id: generateUniqueId(),
         address,
         description,
         images,
         link: simpleLink,
         price,
         hasDuplicates,
+        scrapedAt: new Date().toISOString(),
         elementId: liId,
       };
 

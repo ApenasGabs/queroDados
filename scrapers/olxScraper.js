@@ -3,6 +3,8 @@ const path = require("path");
 const { saveJSON } = require("../utils/fileHelper");
 const { convertDate } = require("../utils/dateHelper");
 const config = require("../config/olxConfig");
+const { generateUniqueId } = require("../utils/idGenerator");
+
 // const { simulateInteractions } = require("../utils/interactionsHelper");
 const attributeMapping = {
   quartos: "numberOfRooms",
@@ -54,6 +56,7 @@ const getHouseList = async (page) => {
       )?.innerText;
 
       const house = {
+        id: generateUniqueId(),
         address,
         description,
         images:
@@ -62,6 +65,7 @@ const getHouseList = async (page) => {
             : [images],
         link,
         price,
+        scrapedAt: new Date().toISOString(),
         publishDate,
       };
       console.log(`${idx + 1} ${house}`);
