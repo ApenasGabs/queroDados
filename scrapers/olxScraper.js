@@ -3,7 +3,6 @@ const path = require("path");
 const { saveJSON } = require("../utils/fileHelper");
 const { convertDate } = require("../utils/dateHelper");
 const config = require("../config/olxConfig");
-const { generatePropertyId } = require("../utils/idGenerator");
 
 // const { simulateInteractions } = require("../utils/interactionsHelper");
 const attributeMapping = {
@@ -54,7 +53,13 @@ const getHouseList = async (page) => {
       const publishDate = li.querySelector(
         'p[data-testid="ds-adcard-date"]'
       )?.innerText;
+      function generatePropertyId() {
+        const now = new Date();
+        const timestamp = now.getTime();
+        const randomSuffix = Math.floor(Math.random() * 1000);
 
+        return `prop_${timestamp}_${randomSuffix}`;
+      }
       const house = {
         id: generatePropertyId(),
         address,
