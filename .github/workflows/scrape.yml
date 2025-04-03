@@ -17,7 +17,6 @@ env:
 jobs:
   olx-scraper:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     outputs:
       artifact-path: ${{ steps.upload-olx-artifact.outputs.artifact-path }}
 
@@ -87,7 +86,6 @@ jobs:
 
   zap-scraper:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     outputs:
       artifact-path: ${{ steps.upload-zap-artifact.outputs.artifact-path }}
 
