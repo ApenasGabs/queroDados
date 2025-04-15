@@ -176,31 +176,62 @@ jobs:
           git config pull.rebase false
           git pull origin api
 
-      - name: Create results directory
-        run: mkdir -p querocasa/data/results
-
       - name: Configure Git user
         run: |
           cd querocasa
           git config --global user.name "${{ secrets.GIT_USER_NAME }}"
           git config --global user.email "${{ secrets.GIT_USER_EMAIL }}"
 
+      - name: Set up separate directories for old and new data
+        run: |
+          mkdir -p querocasa/data/results      # Para manter os dados antigos
+          mkdir -p data/results_new            # Para os novos dados (scraped)
+
+          # Backup dos dados antigos (se existirem)
+          if [ -f "querocasa/data/results/olxResults.json" ]; then
+            echo "Dados OLX antigos encontrados"
+            cat querocasa/data/results/olxResults.json | head -n 20
+          else
+            echo "[]" > querocasa/data/results/olxResults.json
+            echo "Arquivo olxResults.json criado vazio"
+          fi
+
+          if [ -f "querocasa/data/results/zapResults.json" ]; then
+            echo "Dados ZAP antigos encontrados"
+            cat querocasa/data/results/zapResults.json | head -n 20
+          else
+            echo "[]" > querocasa/data/results/zapResults.json
+            echo "Arquivo zapResults.json criado vazio"
+          fi
+
       - name: Download OLX artifact
         uses: actions/download-artifact@v4
         with:
           name: olx-results
-          path: querocasa/data/results
+          path: data/results_new # Baixa para diretório temporário
 
       - name: Download Zap artifact
         uses: actions/download-artifact@v4
         with:
           name: zap-results
-          path: querocasa/data/results
+          path: data/results_new # Baixa para diretório temporário
+
+      - name: Debug diretórios antes do merge
+        run: |
+          echo "===== CONTEÚDO DOS DIRETÓRIOS ANTES DO MERGE ====="
+
+          echo "--- DATA ANTIGA (querocasa/data/results) ---"
+          ls -la querocasa/data/results/
+          head -n 10 querocasa/data/results/olxResults.json || echo "Arquivo vazio ou inexistente"
+
+          echo "--- DATA NOVA (data/results_new) ---"
+          ls -la data/results_new/
+          head -n 10 data/results_new/olxResults.json || echo "Arquivo vazio ou inexistente"
 
       - name: Verify downloaded artifacts
         run: |
           echo "Verificando artefatos baixados..."
-          cd querocasa/data/results
+          cd data/results_new
           ls -la
 
           # Verifica e corrige arquivos se necessário
@@ -242,8 +273,8 @@ jobs:
           import { processPlatformResults, configurePaths } from './scripts/mergeResults.js';
 
           // Define os caminhos usados na pipeline
-          const OLD_PATH = './data/results';   // Dados antigos (mesmo diretório)
-          const NEW_PATH = './data/results';   // Dados novos (mesmo diretório)
+          const OLD_PATH = './data/results';      // Dados antigos dentro de querocasa
+          const NEW_PATH = '../data/results_new'; // Dados novos (diretório separado)
 
           async function runMerge() {
             try {
@@ -255,7 +286,10 @@ jobs:
               configurePaths(OLD_PATH, NEW_PATH);
               
               // Executa o merge para cada plataforma
+              console.log('Iniciando processamento de OLX...');
               await processPlatformResults('olx');
+              
+              console.log('Iniciando processamento de ZAP...');
               await processPlatformResults('zap');
               
               console.log('Merge completo!');
@@ -271,6 +305,37 @@ jobs:
           # Executa o script personalizado
           node run-merge.js
           echo "Resultados mesclados com sucesso!"
+
+      - name: Verify merge results
+        run: |
+          echo "===== VERIFICAÇÃO DOS RESULTADOS DO MERGE ====="
+          cd querocasa/data/results
+
+          # Verifica olxResults.json
+          echo "Analisando olxResults.json após o merge:"
+          if [ -f "olxResults.json" ]; then
+            # Conta total de propriedades
+            TOTAL=$(jq '. | length' olxResults.json)
+            echo "Total de propriedades olxResults.json: $TOTAL"
+            
+            # Verifica a preservação de IDs específicos (exemplo)
+            if jq -e '.[] | select(.id | startswith("prop_17445"))' olxResults.json > /dev/null; then
+              echo "✅ IDs começando com prop_17445 foram preservados"
+              jq '.[] | select(.id | startswith("prop_17445")) | {id, scrapedAt, link}' olxResults.json
+            fi
+          else
+            echo "❌ Arquivo olxResults.json não encontrado após o merge!"
+          fi
+
+          # Verifica zapResults.json
+          echo "Analisando zapResults.json após o merge:"
+          if [ -f "zapResults.json" ]; then
+            # Conta total de propriedades
+            TOTAL=$(jq '. | length' zapResults.json)
+            echo "Total de propriedades zapResults.json: $TOTAL"
+          else
+            echo "❌ Arquivo zapResults.json não encontrado após o merge!"
+          fi
 
       - name: Update coordinates
         run: |
