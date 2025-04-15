@@ -185,7 +185,14 @@ module.exports = async (maxPrice) => {
     console.error("Erro durante o scraping:", error);
     if (page) {
       await page.screenshot({
-        path: `data/results/error_screenshot_${Date.now()}.png`,
+        path: `data/results/erro_zap_${new Date()
+          .toLocaleString("pt-BR", {
+            timeZone: "America/Sao_Paulo",
+            dateStyle: "long",
+            timeStyle: "medium",
+          })
+          .replace(/[/:,]/g, "-")
+          .replace(/ /g, "_")}.png`,
         fullPage: true,
       });
     }
