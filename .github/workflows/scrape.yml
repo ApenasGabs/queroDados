@@ -184,65 +184,61 @@ jobs:
 
       - name: Set up separate directories for old and new data
         run: |
-          mkdir -p querocasa/data/results      # Para manter os dados antigos
-          mkdir -p data/results_new            # Para os novos dados (scraped)
+          mkdir -p data/results_new
+          mkdir -p querocasa/data/results
 
-          # Backup dos dados antigos (se existirem)
+          echo "===== VERIFICANDO DADOS ANTIGOS EXISTENTES ====="
           if [ -f "querocasa/data/results/olxResults.json" ]; then
-            echo "Dados OLX antigos encontrados"
-            cat querocasa/data/results/olxResults.json | head -n 20
+            echo "✅ Arquivo olxResults.json encontrado"
+            COUNT=$(grep -o "\"id\":" querocasa/data/results/olxResults.json | wc -l)
+            echo "   Contém aproximadamente $COUNT itens"
           else
+            echo "❌ Arquivo olxResults.json não encontrado - criando vazio"
             echo "[]" > querocasa/data/results/olxResults.json
-            echo "Arquivo olxResults.json criado vazio"
           fi
 
           if [ -f "querocasa/data/results/zapResults.json" ]; then
-            echo "Dados ZAP antigos encontrados"
-            cat querocasa/data/results/zapResults.json | head -n 20
+            echo "✅ Arquivo zapResults.json encontrado"
+            COUNT=$(grep -o "\"id\":" querocasa/data/results/zapResults.json | wc -l)
+            echo "   Contém aproximadamente $COUNT itens"
           else
+            echo "❌ Arquivo zapResults.json não encontrado - criando vazio"
             echo "[]" > querocasa/data/results/zapResults.json
-            echo "Arquivo zapResults.json criado vazio"
           fi
 
       - name: Download OLX artifact
         uses: actions/download-artifact@v4
         with:
           name: olx-results
-          path: data/results_new # Baixa para diretório temporário
+          path: data/results_new
 
       - name: Download Zap artifact
         uses: actions/download-artifact@v4
         with:
           name: zap-results
-          path: data/results_new # Baixa para diretório temporário
-
-      - name: Debug diretórios antes do merge
-        run: |
-          echo "===== CONTEÚDO DOS DIRETÓRIOS ANTES DO MERGE ====="
-
-          echo "--- DATA ANTIGA (querocasa/data/results) ---"
-          ls -la querocasa/data/results/
-          head -n 10 querocasa/data/results/olxResults.json || echo "Arquivo vazio ou inexistente"
-
-          echo "--- DATA NOVA (data/results_new) ---"
-          ls -la data/results_new/
-          head -n 10 data/results_new/olxResults.json || echo "Arquivo vazio ou inexistente"
+          path: data/results_new
 
       - name: Verify downloaded artifacts
         run: |
-          echo "Verificando artefatos baixados..."
+          echo "===== VERIFICANDO ARTEFATOS BAIXADOS ====="
           cd data/results_new
           ls -la
 
-          # Verifica e corrige arquivos se necessário
           for platform in olx zap; do
             file="${platform}Results.json"
+            echo "Verificando $file..."
             if [ ! -f "$file" ] || [ ! -s "$file" ]; then
+              echo "⚠️ Arquivo $file ausente ou vazio - criando array vazio"
               echo "[]" > "$file"
-              echo "Arquivo $file criado/reescrito vazio"
-            elif ! jq empty "$file" 2>/dev/null; then
-              echo "[]" > "$file"
-              echo "Arquivo $file contém JSON inválido, substituído por array vazio"
+            else
+              if jq empty "$file" 2>/dev/null; then
+                echo "✅ Arquivo $file validado com sucesso"
+                COUNT=$(grep -o "\"id\":" "$file" | wc -l)
+                echo "   Contém aproximadamente $COUNT itens"
+              else
+                echo "❌ Arquivo $file contém JSON inválido - substituindo por array vazio"
+                echo "[]" > "$file"
+              fi
             fi
           done
 
@@ -265,16 +261,14 @@ jobs:
 
       - name: Merge and update results
         run: |
-          echo "Mesclando resultados..."
+          echo "===== MESCLANDO RESULTADOS ====="
           cd querocasa
 
-          # Cria um script temporário para executar o merge com caminhos explícitos
           cat > run-merge.js <<'EOF'
           import { processPlatformResults, configurePaths } from './scripts/mergeResults.js';
 
-          // Define os caminhos usados na pipeline
-          const OLD_PATH = './data/results';      // Dados antigos dentro de querocasa
-          const NEW_PATH = '../data/results_new'; // Dados novos (diretório separado)
+          const OLD_PATH = './data/results';
+          const NEW_PATH = '../data/results_new';
 
           async function runMerge() {
             try {
@@ -282,10 +276,8 @@ jobs:
               console.log(`OLD_PATH: ${OLD_PATH}`);
               console.log(`NEW_PATH: ${NEW_PATH}`);
               
-              // Configura os caminhos explicitamente
               configurePaths(OLD_PATH, NEW_PATH);
               
-              // Executa o merge para cada plataforma
               console.log('Iniciando processamento de OLX...');
               await processPlatformResults('olx');
               
@@ -302,40 +294,43 @@ jobs:
           runMerge();
           EOF
 
-          # Executa o script personalizado
           node run-merge.js
           echo "Resultados mesclados com sucesso!"
 
       - name: Verify merge results
         run: |
-          echo "===== VERIFICAÇÃO DOS RESULTADOS DO MERGE ====="
+          echo "===== VERIFICANDO RESULTADOS DO MERGE ====="
           cd querocasa/data/results
 
-          # Verifica olxResults.json
-          echo "Analisando olxResults.json após o merge:"
-          if [ -f "olxResults.json" ]; then
-            # Conta total de propriedades
-            TOTAL=$(jq '. | length' olxResults.json)
-            echo "Total de propriedades olxResults.json: $TOTAL"
-            
-            # Verifica a preservação de IDs específicos (exemplo)
-            if jq -e '.[] | select(.id | startswith("prop_17445"))' olxResults.json > /dev/null; then
-              echo "✅ IDs começando com prop_17445 foram preservados"
-              jq '.[] | select(.id | startswith("prop_17445")) | {id, scrapedAt, link}' olxResults.json
+          verify_json_file() {
+            local file=$1
+            if [ ! -f "$file" ]; then
+              echo "❌ Arquivo $file não encontrado após o merge!"
+              return 1
             fi
-          else
-            echo "❌ Arquivo olxResults.json não encontrado após o merge!"
-          fi
+            
+            if ! jq empty "$file" 2>/dev/null; then
+              echo "❌ Arquivo $file contém JSON inválido!"
+              return 1
+            fi
+            
+            local total=$(jq 'length' "$file")
+            echo "Total de propriedades em $file: $total"
+            
+            if jq -e 'map(select(.id != null)) | length' "$file" > /dev/null; then
+              local ids_count=$(jq 'map(select(.id != null)) | length' "$file")
+              echo "Número de itens com IDs: $ids_count"
+              jq -r 'map(select(.id != null)) | .[0:5] | .[].id' "$file" 2>/dev/null || echo "Nenhum ID encontrado"
+            fi
+            
+            return 0
+          }
 
-          # Verifica zapResults.json
+          echo "Analisando olxResults.json após o merge:"
+          verify_json_file "olxResults.json"
+
           echo "Analisando zapResults.json após o merge:"
-          if [ -f "zapResults.json" ]; then
-            # Conta total de propriedades
-            TOTAL=$(jq '. | length' zapResults.json)
-            echo "Total de propriedades zapResults.json: $TOTAL"
-          else
-            echo "❌ Arquivo zapResults.json não encontrado após o merge!"
-          fi
+          verify_json_file "zapResults.json"
 
       - name: Update coordinates
         run: |
