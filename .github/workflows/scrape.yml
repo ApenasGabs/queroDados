@@ -341,22 +341,51 @@ jobs:
           else
             echo "Script updateCoordinates.js não encontrado, pulando etapa"
           fi
-
-      - name: Commit and push changes
+      - name: Commit em branch separada
         run: |
           cd querocasa
-          echo "Preparando para commit..."
-          git add .
 
-          echo "Verificando mudanças..."
+          # Gera uma branch única com timestamp
+          BRANCH_NAME="update/data-automated-$(date +'%Y%m%d-%H%M%S')"
+          git checkout -b $BRANCH_NAME
+
+          git add .
           if git diff-index --quiet HEAD --; then
             echo "Nenhuma mudança detectada."
+            echo "should_skip=true" >> $GITHUB_ENV
           else
-            echo "Efetuando commit das mudanças..."
             git commit -m ":rocket: Atualização automática de dados [$(date +'%Y-%m-%d %H:%M')]"
-            
-            echo "Efetuando push para o repositório..."
-            git push https://${{ secrets.TARGET_REPO_PAT }}@github.com/${{ secrets.TARGET_REPO_URL }}.git HEAD:api
+            echo "branch_name=$BRANCH_NAME" >> $GITHUB_ENV
+            echo "should_skip=false" >> $GITHUB_ENV
           fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.TARGET_REPO_PAT }}
+
+      - name: Gerar merge-summary.md
+        if: env.should_skip != 'true'
+        run: |
+          cd querocasa
+
+          echo "📊 Gerando estatísticas do merge..." > merge-summary.md
+          echo "" >> merge-summary.md
+
+          for file in data/results/*.json; do
+            platform=$(basename "$file" Results.json)
+            total=$(jq 'length' "$file")
+            with_ids=$(jq 'map(select(.id != null)) | length' "$file")
+
+            echo "### ${platform^^}" >> merge-summary.md
+            echo "- Total de itens: $total" >> merge-summary.md
+            echo "- Itens com ID: $with_ids" >> merge-summary.md
+            echo "" >> merge-summary.md
+          done
+
+      - name: Criar Pull Request automático
+        if: env.should_skip != 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.TARGET_REPO_PAT }}
+          path: querocasa
+          commit-message: ":memo: Atualização automática de dados e estatísticas"
+          branch: ${{ env.branch_name }}
+          title: ":robot: Atualização automática de dados"
+          body-path: querocasa/merge-summary.md
+          base: api
