@@ -395,9 +395,11 @@ jobs:
           echo "- 📍 Total de bairros identificados: ${{ env.TOTAL_NEIGHBORHOODS }}" >> merge-summary.md
           echo "- ✅ Coordenadas atualizadas: ${{ env.COORDINATES_UPDATED }}" >> merge-summary.md
           echo "" >> merge-summary.md
+
           echo "### 🖼️ Capturas de Erro" >> merge-summary.md
+          COMMIT_HASH=$(git rev-parse --short HEAD)
           for img in screenshots/*.png; do
-            [ -f "$img" ] && echo "![Erro]($img)" >> merge-summary.md
+            [ -f "$img" ] && echo "![Erro](https://raw.githubusercontent.com/ApenasGabs/querocasa/${COMMIT_HASH}/$(basename $img))" >> merge-summary.md
           done
 
       - name: Create or update Pull Request
