@@ -345,9 +345,28 @@ jobs:
         run: |
           cd querocasa
 
-          # Gera uma branch única com timestamp
-          BRANCH_NAME="update/data-automated-$(date +'%Y%m%d-%H%M%S')"
-          git checkout -b $BRANCH_NAME
+          echo "Instalando GitHub CLI..."
+          sudo apt-get update
+          sudo apt-get install -y gh
+
+          echo "Autenticando no GitHub CLI..."
+          echo "${{ secrets.TARGET_REPO_PAT }}" | gh auth login --with-token
+
+          REPO="${{ secrets.TARGET_REPO_URL }}"
+
+          # Verificando PRs abertos para a branch api
+          echo "Procurando PRs abertos para a branch 'api'..."
+          PR_JSON=$(gh pr list --repo "$REPO" --base api --state open --json headRefName --jq '.[0].headRefName')
+
+          if [ -n "$PR_JSON" ]; then
+            echo "🔁 Encontrado PR aberto: reusando a branch $PR_JSON"
+            git checkout "$PR_JSON" || git checkout -b "$PR_JSON" origin/"$PR_JSON"
+            BRANCH_NAME="$PR_JSON"
+          else
+            BRANCH_NAME="update/data-automated-$(date +'%Y%m%d-%H%M%S')"
+            echo "✨ Nenhum PR aberto encontrado. Criando nova branch $BRANCH_NAME"
+            git checkout -b "$BRANCH_NAME"
+          fi
 
           git add .
           if git diff-index --quiet HEAD --; then
