@@ -218,6 +218,12 @@ jobs:
           name: zap-results
           path: data/results_new
 
+      - name: Move error screenshots to querocasa folder
+        run: |
+          echo "Movendo imagens de erro para o repositório clonado..."
+          mkdir -p querocasa/screenshots
+          find data/results_new -name "*.png" -exec cp {} querocasa/screenshots/ \;
+
       - name: Verify downloaded artifacts
         run: |
           echo "===== VERIFICANDO ARTEFATOS BAIXADOS ====="
@@ -363,6 +369,7 @@ jobs:
           cd querocasa
           echo "### 🔄 Resumo do Merge" > merge-summary.md
           echo "" >> merge-summary.md
+          echo "_📅 Gerado em: **${{ env.FULL_DATE }}**_" >> merge-summary.md
 
           for file in data/results/*.json; do
             platform=$(basename "$file" Results.json)
@@ -388,7 +395,10 @@ jobs:
           echo "- 📍 Total de bairros identificados: ${{ env.TOTAL_NEIGHBORHOODS }}" >> merge-summary.md
           echo "- ✅ Coordenadas atualizadas: ${{ env.COORDINATES_UPDATED }}" >> merge-summary.md
           echo "" >> merge-summary.md
-          echo "_📅 Gerado em: **${{ env.FULL_DATE }}**_" >> merge-summary.md
+          echo "### 🖼️ Capturas de Erro" >> merge-summary.md
+          for img in screenshots/*.png; do
+            [ -f "$img" ] && echo "![Erro]($img)" >> merge-summary.md
+          done
 
       - name: Create or update Pull Request
         if: env.should_skip != 'true'
