@@ -361,21 +361,34 @@ jobs:
         if: env.should_skip != 'true'
         run: |
           cd querocasa
-          echo "# 📊 Estatísticas da atualização" > merge-summary.md
-          echo "" >> merge-summary.md
-          echo "Gerado em: **${{ env.FULL_DATE }}**" >> merge-summary.md
+          echo "### 🔄 Resumo do Merge" > merge-summary.md
           echo "" >> merge-summary.md
 
           for file in data/results/*.json; do
             platform=$(basename "$file" Results.json)
+            platform_upper=${platform^^}
+
             total=$(jq 'length' "$file")
             with_ids=$(jq 'map(select(.id != null)) | length' "$file")
-            
-            echo "### ${platform^^}" >> merge-summary.md
-            echo "- Total de itens: $total" >> merge-summary.md
-            echo "- Itens com ID: $with_ids" >> merge-summary.md
+
+            # Se tiver arquivos com diffs futuros, essas infos podem ser dinâmicas
+            added=$(jq 'map(select(.__status == "added")) | length' "$file")
+            updated=$(jq 'map(select(.__status == "updated")) | length' "$file")
+            removed=$(jq 'map(select(.__status == "removed")) | length' "$file")
+
+            echo "#### ${platform_upper}" >> merge-summary.md
+            echo "- 🆕 Novos imóveis adicionados: ${added:-N/A}" >> merge-summary.md
+            echo "- ♻️ Imóveis atualizados: ${updated:-N/A}" >> merge-summary.md
+            echo "- 🛑 Imóveis removidos: ${removed:-N/A}" >> merge-summary.md
+            echo "- 📦 Total após merge: $total" >> merge-summary.md
             echo "" >> merge-summary.md
           done
+
+          echo "### 🗺️ Coordenadas geográficas" >> merge-summary.md
+          echo "- 📍 Total de bairros identificados: ${{ env.TOTAL_NEIGHBORHOODS }}" >> merge-summary.md
+          echo "- ✅ Coordenadas atualizadas: ${{ env.COORDINATES_UPDATED }}" >> merge-summary.md
+          echo "" >> merge-summary.md
+          echo "_📅 Gerado em: **${{ env.FULL_DATE }}**_" >> merge-summary.md
 
       - name: Create or update Pull Request
         if: env.should_skip != 'true'
