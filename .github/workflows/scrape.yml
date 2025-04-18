@@ -349,12 +349,21 @@ jobs:
           BRANCH_NAME="update/data-monthly-$MONTH_YEAR"
           echo "branch_name=$BRANCH_NAME" >> $GITHUB_ENV
           echo "Usando branch: $BRANCH_NAME"
+      - name: Set current date
+        run: |
+          # Configurando timezone para Brasília (BRT)
+          export TZ="America/Sao_Paulo"
+          echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+          echo "FORMATTED_DATE=$(date +'%d/%m/%Y')" >> $GITHUB_ENV
+          echo "FULL_DATE=$(date +'%d/%m/%Y às %H:%M (BRT)')" >> $GITHUB_ENV
 
       - name: Generate summary
         if: env.should_skip != 'true'
         run: |
           cd querocasa
-          echo "📊 Estatísticas da atualização - $(date +'%Y-%m-%d')" > merge-summary.md
+          echo "# 📊 Estatísticas da atualização" > merge-summary.md
+          echo "" >> merge-summary.md
+          echo "Gerado em: **${{ env.FULL_DATE }}**" >> merge-summary.md
           echo "" >> merge-summary.md
 
           for file in data/results/*.json; do
@@ -368,34 +377,15 @@ jobs:
             echo "" >> merge-summary.md
           done
 
-      - name: Gerar merge-summary.md
-        if: env.should_skip != 'true'
-        run: |
-          cd querocasa
-
-          echo "📊 Gerando estatísticas do merge..." > merge-summary.md
-          echo "" >> merge-summary.md
-
-          for file in data/results/*.json; do
-            platform=$(basename "$file" Results.json)
-            total=$(jq 'length' "$file")
-            with_ids=$(jq 'map(select(.id != null)) | length' "$file")
-
-            echo "### ${platform^^}" >> merge-summary.md
-            echo "- Total de itens: $total" >> merge-summary.md
-            echo "- Itens com ID: $with_ids" >> merge-summary.md
-            echo "" >> merge-summary.md
-          done
-
       - name: Create or update Pull Request
         if: env.should_skip != 'true'
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.TARGET_REPO_PAT }}
           path: querocasa
-          commit-message: ":rocket: Atualização automática de dados [$(date +'%Y-%m-%d')]"
+          commit-message: ":rocket: Atualização automática de dados [${{ env.CURRENT_DATE }}]"
           branch: ${{ env.branch_name }}
-          title: "🤖 Atualização automática de dados - ${{ env.branch_name }}"
+          title: "🤖 Atualização automática de dados - ${{ env.FORMATTED_DATE }}"
           body-path: querocasa/merge-summary.md
           base: api
-          update-branch: true # Importante: Permite atualizar um branch existente
+          update-branch: true
