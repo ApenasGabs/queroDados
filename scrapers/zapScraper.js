@@ -141,8 +141,8 @@ module.exports = async (maxPrice) => {
         waitUntil: "domcontentloaded",
         timeout: 0,
       });
-      await page.waitForSelector("listings-wrapper flex flex-col gap-3", {
-        timeout: 30000,
+      await page.waitForSelector("div.listings-wrapper", {
+        timeout: 3000,
       });
       await simulateInteractions(page, "zapInteractionData");
 
