@@ -378,7 +378,6 @@ jobs:
             total=$(jq 'length' "$file")
             with_ids=$(jq 'map(select(.id != null)) | length' "$file")
 
-            # Se tiver arquivos com diffs futuros, essas infos podem ser dinâmicas
             added=$(jq 'map(select(.__status == "added")) | length' "$file")
             updated=$(jq 'map(select(.__status == "updated")) | length' "$file")
             removed=$(jq 'map(select(.__status == "removed")) | length' "$file")
@@ -399,7 +398,7 @@ jobs:
           echo "### 🖼️ Capturas de Erro" >> merge-summary.md
           COMMIT_HASH=$(git rev-parse HEAD) 
           for img in screenshots/*.png; do
-            [ -f "$img" ] && echo "![Erro](https://raw.githubusercontent.com/ApenasGabs/querocasa/${COMMIT_HASH}/$(basename $img))" >> merge-summary.md
+            [ -f "$img" ] && echo "![Erro](https://raw.githubusercontent.com/ApenasGabs/querocasa/${COMMIT_HASH}/${img})" >> merge-summary.md
           done
 
       - name: Create or update Pull Request
