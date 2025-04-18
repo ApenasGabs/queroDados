@@ -9,7 +9,7 @@ const getHouseList = async (page) => {
   return await page.evaluate(() => {
     const filteredItems = Array.from(
       document.querySelectorAll(
-        "div.listing-wrapper__content div[data-position]"
+        'div.listings-wrapper li[data-cy="rp-property-cd"]'
       )
     );
 
@@ -141,12 +141,9 @@ module.exports = async (maxPrice) => {
         waitUntil: "domcontentloaded",
         timeout: 0,
       });
-      await page.waitForSelector(
-        'div.listing-wrapper__content div[data-testid="card"]',
-        {
-          timeout: 30000,
-        }
-      );
+      await page.waitForSelector("listings-wrapper flex flex-col gap-3", {
+        timeout: 30000,
+      });
       await simulateInteractions(page, "zapInteractionData");
 
       let newHouses = await getHouseList(page);
