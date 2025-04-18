@@ -397,7 +397,7 @@ jobs:
           echo "" >> merge-summary.md
 
           echo "### 🖼️ Capturas de Erro" >> merge-summary.md
-          COMMIT_HASH=$(git rev-parse --short HEAD)
+          COMMIT_HASH=$(git rev-parse HEAD) 
           for img in screenshots/*.png; do
             [ -f "$img" ] && echo "![Erro](https://raw.githubusercontent.com/ApenasGabs/querocasa/${COMMIT_HASH}/$(basename $img))" >> merge-summary.md
           done
