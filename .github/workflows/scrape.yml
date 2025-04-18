@@ -341,42 +341,32 @@ jobs:
           else
             echo "Script updateCoordinates.js não encontrado, pulando etapa"
           fi
-      - name: Commit em branch separada
+
+      - name: Define branch name
+        run: |
+          # Usar um nome que muda apenas mensalmente para reusar PRs por um mês
+          MONTH_YEAR=$(date +'%Y-%m')
+          BRANCH_NAME="update/data-monthly-$MONTH_YEAR"
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_ENV
+          echo "Usando branch: $BRANCH_NAME"
+
+      - name: Generate summary
+        if: env.should_skip != 'true'
         run: |
           cd querocasa
+          echo "📊 Estatísticas da atualização - $(date +'%Y-%m-%d')" > merge-summary.md
+          echo "" >> merge-summary.md
 
-          echo "Instalando GitHub CLI..."
-          sudo apt-get update
-          sudo apt-get install -y gh
-
-          echo "Autenticando no GitHub CLI..."
-          echo "${{ secrets.TARGET_REPO_PAT }}" | gh auth login --with-token
-
-          REPO="${{ secrets.TARGET_REPO_URL }}"
-
-          # Verificando PRs abertos para a branch api
-          echo "Procurando PRs abertos para a branch 'api'..."
-          PR_JSON=$(gh pr list --repo "$REPO" --base api --state open --json headRefName --jq '.[0].headRefName')
-
-          if [ -n "$PR_JSON" ]; then
-            echo "🔁 Encontrado PR aberto: reusando a branch $PR_JSON"
-            git checkout "$PR_JSON" || git checkout -b "$PR_JSON" origin/"$PR_JSON"
-            BRANCH_NAME="$PR_JSON"
-          else
-            BRANCH_NAME="update/data-automated-$(date +'%Y%m%d-%H%M%S')"
-            echo "✨ Nenhum PR aberto encontrado. Criando nova branch $BRANCH_NAME"
-            git checkout -b "$BRANCH_NAME"
-          fi
-
-          git add .
-          if git diff-index --quiet HEAD --; then
-            echo "Nenhuma mudança detectada."
-            echo "should_skip=true" >> $GITHUB_ENV
-          else
-            git commit -m ":rocket: Atualização automática de dados [$(date +'%Y-%m-%d %H:%M')]"
-            echo "branch_name=$BRANCH_NAME" >> $GITHUB_ENV
-            echo "should_skip=false" >> $GITHUB_ENV
-          fi
+          for file in data/results/*.json; do
+            platform=$(basename "$file" Results.json)
+            total=$(jq 'length' "$file")
+            with_ids=$(jq 'map(select(.id != null)) | length' "$file")
+            
+            echo "### ${platform^^}" >> merge-summary.md
+            echo "- Total de itens: $total" >> merge-summary.md
+            echo "- Itens com ID: $with_ids" >> merge-summary.md
+            echo "" >> merge-summary.md
+          done
 
       - name: Gerar merge-summary.md
         if: env.should_skip != 'true'
@@ -397,14 +387,15 @@ jobs:
             echo "" >> merge-summary.md
           done
 
-      - name: Criar Pull Request automático
+      - name: Create or update Pull Request
         if: env.should_skip != 'true'
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.TARGET_REPO_PAT }}
           path: querocasa
-          commit-message: ":memo: Atualização automática de dados e estatísticas"
+          commit-message: ":rocket: Atualização automática de dados [$(date +'%Y-%m-%d')]"
           branch: ${{ env.branch_name }}
-          title: ":robot: Atualização automática de dados"
+          title: "🤖 Atualização automática de dados - ${{ env.branch_name }}"
           body-path: querocasa/merge-summary.md
           base: api
+          update-branch: true # Importante: Permite atualizar um branch existente
