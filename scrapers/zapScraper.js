@@ -59,7 +59,7 @@ const getHouseList = async (page) => {
             'div[data-cy="rp-cardProperty-image-img"] ul li img'
           )
         ).map((img) => img.src);
-        
+
         const price = card
           .querySelector('div[data-cy="rp-cardProperty-price-txt"] p')
           ?.innerText?.replace(/[R$\s.]/g, "");
@@ -118,7 +118,6 @@ const getHouseList = async (page) => {
             await page.waitForTimeout(500);
           })();
         }
-
         return house;
       })
     );
@@ -159,11 +158,14 @@ module.exports = async (maxPrice) => {
             timeout: 10000,
           });
         } catch (selectorError) {
-          await logError("Falha ao encontrar div.listings-wrapper", {
-            page: pageNumber,
-            url,
-            errorMessage: selectorError.message,
-          });
+          await logError(
+            `Falha ao encontrar div.listings-wrapper ${selectorError}`,
+            {
+              page: pageNumber,
+              url,
+              errorMessage: selectorError.message,
+            }
+          );
 
           const hasContent = await page.evaluate(() => {
             return document.body.innerText.length > 100;
@@ -198,7 +200,7 @@ module.exports = async (maxPrice) => {
         pageNumber++;
         await browser.close();
       } catch (pageError) {
-        await logError(`Erro ao processar página ${pageNumber}`, {
+        await logError(`Erro ao processar página ${pageNumber}, ${pageError}`, {
           url,
           errorMessage: pageError.message,
         });
