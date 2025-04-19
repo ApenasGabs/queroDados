@@ -28,7 +28,39 @@ const logError = async (message, details = {}) => {
   console.error(`[ERROR LOG] ${message}`);
 };
 
+/**
+ * @async
+ * @function getHouseList
+ * @param {Object} page - Objeto da página Puppeteer para interação com o navegador
+ * @description Extrai informações de listagens de imóveis do site ZAP Imóveis.
+ * 
+ * O processo de extração ocorre nas seguintes etapas:
+ * 1. Expõe uma função de log para mensagens do navegador
+ * 2. Extrai dados básicos de cada imóvel através de seletores DOM:
+ *    - Identificador único
+ *    - Endereço
+ *    - Descrição (quartos, banheiros, etc.)
+ *    - Imagens
+ *    - Link para a página do imóvel
+ *    - Preço
+ *    - Indicador de duplicação
+ *    - Data e hora da extração
+ * 3. Processamento especial para imóveis com listagens duplicadas:
+ *    - Captura de screenshots antes da interação
+ *    - Clique no botão de duplicados
+ *    - Tentativa de localizar o modal de duplicados
+ *    - Extração de links alternativos
+ *    - Salvamento do HTML do modal para depuração
+ *    - Atualização do link principal quando duplicados são encontrados
+ * 
+ * @returns {Promise<Array>} Lista de imóveis com todas as informações extraídas
+ * @throws {Error} Erros durante o processamento são logados, mas não interrompem a extração
+ */
 const getHouseList = async (page) => {
+  await page.exposeFunction("logFromBrowser", (message) => {
+    console.log(`[BROWSER]: ${message}`);
+  });
+
   const basicData = await page.evaluate(() => {
     const filteredItems = Array.from(
       document.querySelectorAll(
@@ -95,38 +127,146 @@ const getHouseList = async (page) => {
   const results = [];
   for (const house of basicData) {
     if (house.hasDuplicates) {
+      console.log("hasDuplicates: ", house);
       try {
+        await page.screenshot({
+          path: `data/results/debug_pre_click_${house.elementId}.png`,
+          fullPage: false,
+        });
+
         await page.click(
           `#${house.elementId} button[data-cy="listing-card-deduplicated-button"]`
         );
 
-        // Espere pelo modal
-        await page.waitForSelector(
-          'section[data-cy="deduplication-modal-list-step"]',
-          {
-            timeout: 5000,
-          }
-        );
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
-        // Obtenha os links alternativos
-        const links = await page.evaluate(() => {
-          const linksSection = document.querySelector(
-            'section[data-cy="deduplication-modal-list-step"]'
-          );
-          if (!linksSection) return [];
-          return Array.from(linksSection.querySelectorAll("a")).map(
-            (a) => a.href
-          );
+        await page.screenshot({
+          path: `data/results/debug_post_click_${house.elementId}.png`,
+          fullPage: false,
         });
 
-        // Atualize o link se houver alternativas
-        if (links && links.length > 0) {
-          house.link = links[0];
+        let found = false;
+        let attempts = 0;
+        let finalHtml = "";
+        let modalLinks = [];
+
+        while (!found && attempts < 10) {
+          attempts++;
+          console.log(`Tentativa ${attempts} para encontrar o modal...`);
+
+          const evalResult = await page.evaluate(async () => {
+            console.log("Executando avaliação para buscar modal...");
+
+            await window.logFromBrowser("Buscando modal no DOM...");
+
+            const selectors = [
+              'section[data-cy="deduplication-modal-list-step"]',
+              'div[role="dialog"]',
+              "section.modal-list",
+              '[data-cy*="deduplication"]',
+            ];
+
+            let foundElement = null;
+            let html = "";
+            let links = [];
+
+            for (const selector of selectors) {
+              const element = document.querySelector(selector);
+              if (element) {
+                await window.logFromBrowser(
+                  `Encontrado elemento com seletor: ${selector}`
+                );
+                foundElement = selector;
+                html = element.outerHTML;
+
+                const anchorElements = element.querySelectorAll("a");
+                if (anchorElements.length > 0) {
+                  links = Array.from(anchorElements).map((a) => ({
+                    href: a.href,
+                    text: a.innerText.trim(),
+                  }));
+                  await window.logFromBrowser(
+                    `Encontrados ${links.length} links no modal!`
+                  );
+                } else {
+                  await window.logFromBrowser(
+                    "Nenhum link encontrado no elemento."
+                  );
+                }
+
+                break;
+              }
+            }
+
+            if (!foundElement) {
+              await window.logFromBrowser(
+                "Modal não encontrado com seletores específicos"
+              );
+              html = document.body.innerHTML;
+
+              const allLinks = document.querySelectorAll("a");
+              const relevantLinks = Array.from(allLinks)
+                .filter((a) => {
+                  const href = a.href.toLowerCase();
+                  const text = a.innerText.toLowerCase();
+                  return (
+                    href.includes("imovel") ||
+                    text.includes("imovel") ||
+                    href.includes("apartamento") ||
+                    text.includes("apartamento") ||
+                    href.includes("casa") ||
+                    text.includes("casa")
+                  );
+                })
+                .map((a) => ({
+                  href: a.href,
+                  text: a.innerText.trim(),
+                }));
+
+              if (relevantLinks.length > 0) {
+                links = relevantLinks;
+                await window.logFromBrowser(
+                  `Encontrados ${links.length} links potencialmente relevantes na página.`
+                );
+              }
+            }
+
+            return { found: !!foundElement, html, links };
+          });
+
+          console.log(`Resultado da tentativa ${attempts}:`, {
+            found: evalResult.found,
+            linksCount: evalResult.links.length,
+          });
+
+          if (evalResult.found || evalResult.links.length > 0) {
+            found = true;
+            finalHtml = evalResult.html;
+            modalLinks = evalResult.links;
+          } else {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
         }
 
-        // Feche o modal
-        await page.keyboard.press("Escape");
-        await page.waitForTimeout(500);
+        if (finalHtml) {
+          const htmlPath = `data/results/modal_html_${house.elementId}.html`;
+          await fs.writeFile(htmlPath, finalHtml);
+          console.log(`HTML do modal salvo em: ${htmlPath}`);
+        }
+
+        console.log("Links encontrados:", modalLinks);
+
+        if (modalLinks.length > 0) {
+          house.link = modalLinks[0].href;
+          console.log(`Link atualizado para: ${house.link}`);
+        }
+
+        try {
+          await page.keyboard.press("Escape");
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        } catch (closeError) {
+          console.log(`Erro ao fechar modal: ${closeError.message}`);
+        }
       } catch (error) {
         console.error(
           `Erro ao processar duplicados para ${house.elementId}:`,
@@ -191,14 +331,12 @@ module.exports = async (maxPrice) => {
             throw new Error("Página sem conteúdo suficiente");
           }
 
-          await page.waitForTimeout(5000);
+          await page.waitFor(5000);
         }
 
         await simulateInteractions(page, "zapInteractionData");
 
         let newHouses = await getHouseList(page);
-
-        console.log("newHouses: ", newHouses);
 
         if (newHouses.length === 0) {
           console.log("Nenhuma casa encontrada nesta página.");
