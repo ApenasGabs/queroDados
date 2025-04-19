@@ -27,7 +27,13 @@ const logError = async (message, details = {}) => {
   await fs.writeFile(logPath, JSON.stringify(logs, null, 2));
   console.error(`[ERROR LOG] ${message}`);
 };
+const generatePropertyId = () => {
+  const now = new Date();
+  const timestamp = now.getTime();
+  const randomSuffix = Math.floor(Math.random() * 1000);
 
+  return `prop_${timestamp}_${randomSuffix}`;
+};
 const getHouseList = async (page) => {
   return await page.evaluate(() => {
     const filteredItems = Array.from(
@@ -36,106 +42,87 @@ const getHouseList = async (page) => {
       )
     );
 
-    return filteredItems.map((li, idx) => {
-      const card = li.querySelector('div[data-testid="card"]');
-      const description = Array.from(
-        card.querySelectorAll('p[data-testid="card-amenity"]')
-      ).reduce((acc, el) => {
-        const key = el.getAttribute("itemprop");
-        const value = el.innerText.split(" ").shift();
-        acc.push({ [key]: value });
-        return acc;
-      }, []);
+    return Promise.all(
+      filteredItems.map(async (li, idx) => {
+        const card = li.querySelector('div[data-testid="card"]');
+        const description = Array.from(
+          card.querySelectorAll('p[data-testid="card-amenity"]')
+        ).reduce((acc, el) => {
+          const key = el.getAttribute("itemprop");
+          const value = el.innerText.split(" ").shift();
+          acc.push({ [key]: value });
+          return acc;
+        }, []);
 
-      const images = Array.from(
-        li.querySelectorAll(
-          'div[data-cy="rp-cardProperty-image-img"] ul li img'
-        )
-      ).map((img) => img.src);
-      const price = card
-        .querySelector('div[data-cy="rp-cardProperty-price-txt"] p')
-        ?.innerText?.replace(/[R$\s.]/g, "");
+        const images = Array.from(
+          li.querySelectorAll(
+            'div[data-cy="rp-cardProperty-image-img"] ul li img'
+          )
+        ).map((img) => img.src);
+        
+        const price = card
+          .querySelector('div[data-cy="rp-cardProperty-price-txt"] p')
+          ?.innerText?.replace(/[R$\s.]/g, "");
 
-      const address = card.querySelector(
-        '[data-cy="rp-cardProperty-location-txt"]'
-      )?.innerText;
-      const duplicatedButton = card.querySelector(
-        'button[data-cy="listing-card-deduplicated-button"]'
-      );
-
-      const hasDuplicates = duplicatedButton !== null;
-
-      const liId = `house-item-${idx}`;
-      li.id = liId;
-
-      const simpleLink = li.querySelector("a")?.href;
-      function generatePropertyId() {
-        const now = new Date();
-        const timestamp = now.getTime();
-        const randomSuffix = Math.floor(Math.random() * 1000);
-
-        return `prop_${timestamp}_${randomSuffix}`;
-      }
-      const house = {
-        id: generatePropertyId(),
-        address,
-        description,
-        images,
-        link: simpleLink,
-        price,
-        hasDuplicates,
-        scrapedAt: new Date().toISOString(),
-        elementId: liId,
-      };
-
-      return house;
-    });
-  });
-};
-
-const processDuplicatedLinks = async (page, houses) => {
-  for (let i = 0; i < houses.length; i++) {
-    const house = houses[i];
-    if (house.hasDuplicates) {
-      try {
-        await page.waitForSelector(
-          `#${house.elementId} button[data-cy="listing-card-deduplicated-button"]`
-        );
-        await page.click(
-          `#${house.elementId} button[data-cy="listing-card-deduplicated-button"]`
+        const address = card.querySelector(
+          '[data-cy="rp-cardProperty-location-txt"]'
+        )?.innerText;
+        const duplicatedButton = card.querySelector(
+          'button[data-cy="listing-card-deduplicated-button"]'
         );
 
-        await page.waitForSelector(
-          'section[data-cy="deduplication-modal-list-step"]',
-          { timeout: 5000 }
-        );
+        const liId = `house-item-${idx}`;
+        li.id = liId;
 
-        const links = await page.evaluate(() => {
-          const linksSection = document.querySelector(
-            'section[data-cy="deduplication-modal-list-step"]'
-          );
-          if (!linksSection) return [];
-          return Array.from(linksSection.querySelectorAll("a")).map(
-            (a) => a.href
-          );
-        });
+        const simpleLink = li.querySelector("a")?.href;
 
-        if (links && links.length > 0) {
-          house.link = links[0];
+        const house = {
+          id: generatePropertyId(),
+          address,
+          description,
+          images,
+          link: simpleLink,
+          price,
+          hasDuplicates: false,
+          scrapedAt: new Date().toISOString(),
+          elementId: liId,
+        };
+
+        const hasDuplicates = duplicatedButton !== null;
+        if (hasDuplicates) {
+          house.hasDuplicates = true;
+          await (async () => {
+            await page.click(duplicatedButton);
+
+            await page.waitForSelector(
+              'section[data-cy="deduplication-modal-list-step"]',
+              { timeout: 5000 }
+            );
+
+            const links = await page.evaluate(() => {
+              const linksSection = document.querySelector(
+                'section[data-cy="deduplication-modal-list-step"]'
+              );
+              if (!linksSection) return [];
+              return Array.from(linksSection.querySelectorAll("a")).map(
+                (a) => a.href
+              );
+            });
+
+            if (links && links.length > 0) {
+              house.link = links[0];
+            }
+
+            await page.keyboard.press("Escape");
+
+            await page.waitForTimeout(500);
+          })();
         }
 
-        await page.keyboard.press("Escape");
-
-        await page.waitForTimeout(500);
-      } catch (error) {
-        console.log(
-          `Erro ao processar duplicados para casa ${i}:`,
-          error.message
-        );
-      }
-    }
-  }
-  return houses;
+        return house;
+      })
+    );
+  });
 };
 
 module.exports = async (maxPrice) => {
@@ -192,8 +179,6 @@ module.exports = async (maxPrice) => {
         await simulateInteractions(page, "zapInteractionData");
 
         let newHouses = await getHouseList(page);
-
-        newHouses = await processDuplicatedLinks(page, newHouses);
 
         console.log("newHouses: ", newHouses);
 
