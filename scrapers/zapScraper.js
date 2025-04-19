@@ -27,101 +27,117 @@ const logError = async (message, details = {}) => {
   await fs.writeFile(logPath, JSON.stringify(logs, null, 2));
   console.error(`[ERROR LOG] ${message}`);
 };
-const generatePropertyId = () => {
-  const now = new Date();
-  const timestamp = now.getTime();
-  const randomSuffix = Math.floor(Math.random() * 1000);
 
-  return `prop_${timestamp}_${randomSuffix}`;
-};
 const getHouseList = async (page) => {
-  return await page.evaluate(() => {
+  const basicData = await page.evaluate(() => {
     const filteredItems = Array.from(
       document.querySelectorAll(
         'div.listings-wrapper li[data-cy="rp-property-cd"]'
       )
     );
+    const generatePropertyId = () => {
+      const now = new Date();
+      const timestamp = now.getTime();
+      const randomSuffix = Math.floor(Math.random() * 1000);
 
-    return Promise.all(
-      filteredItems.map(async (li, idx) => {
-        const card = li.querySelector('div[data-testid="card"]');
-        const description = Array.from(
-          card.querySelectorAll('p[data-testid="card-amenity"]')
-        ).reduce((acc, el) => {
-          const key = el.getAttribute("itemprop");
-          const value = el.innerText.split(" ").shift();
-          acc.push({ [key]: value });
-          return acc;
-        }, []);
+      return `prop_${timestamp}_${randomSuffix}`;
+    };
 
-        const images = Array.from(
-          li.querySelectorAll(
-            'div[data-cy="rp-cardProperty-image-img"] ul li img'
-          )
-        ).map((img) => img.src);
+    return filteredItems.map((li, idx) => {
+      const card = li.querySelector('div[data-testid="card"]');
+      const description = Array.from(
+        card.querySelectorAll('p[data-testid="card-amenity"]')
+      ).reduce((acc, el) => {
+        const key = el.getAttribute("itemprop");
+        const value = el.innerText.split(" ").shift();
+        acc.push({ [key]: value });
+        return acc;
+      }, []);
 
-        const price = card
-          .querySelector('div[data-cy="rp-cardProperty-price-txt"] p')
-          ?.innerText?.replace(/[R$\s.]/g, "");
+      const images = Array.from(
+        li.querySelectorAll(
+          'div[data-cy="rp-cardProperty-image-img"] ul li img'
+        )
+      ).map((img) => img.src);
 
-        const address = card.querySelector(
-          '[data-cy="rp-cardProperty-location-txt"]'
-        )?.innerText;
-        const duplicatedButton = card.querySelector(
+      const price = card
+        .querySelector('div[data-cy="rp-cardProperty-price-txt"] p')
+        ?.innerText?.replace(/[R$\s.]/g, "");
+
+      const address = card.querySelector(
+        '[data-cy="rp-cardProperty-location-txt"]'
+      )?.innerText;
+
+      const hasDuplicates =
+        card.querySelector(
           'button[data-cy="listing-card-deduplicated-button"]'
+        ) !== null;
+
+      const liId = `house-item-${idx}`;
+      li.id = liId;
+
+      const simpleLink = li.querySelector("a")?.href;
+
+      return {
+        id: generatePropertyId(),
+        address,
+        description,
+        images,
+        link: simpleLink,
+        price,
+        hasDuplicates,
+        scrapedAt: new Date().toISOString(),
+        elementId: liId,
+      };
+    });
+  });
+
+  const results = [];
+  for (const house of basicData) {
+    if (house.hasDuplicates) {
+      try {
+        await page.click(
+          `#${house.elementId} button[data-cy="listing-card-deduplicated-button"]`
         );
 
-        const liId = `house-item-${idx}`;
-        li.id = liId;
+        // Espere pelo modal
+        await page.waitForSelector(
+          'section[data-cy="deduplication-modal-list-step"]',
+          {
+            timeout: 5000,
+          }
+        );
 
-        const simpleLink = li.querySelector("a")?.href;
+        // Obtenha os links alternativos
+        const links = await page.evaluate(() => {
+          const linksSection = document.querySelector(
+            'section[data-cy="deduplication-modal-list-step"]'
+          );
+          if (!linksSection) return [];
+          return Array.from(linksSection.querySelectorAll("a")).map(
+            (a) => a.href
+          );
+        });
 
-        const house = {
-          id: generatePropertyId(),
-          address,
-          description,
-          images,
-          link: simpleLink,
-          price,
-          hasDuplicates: false,
-          scrapedAt: new Date().toISOString(),
-          elementId: liId,
-        };
-
-        const hasDuplicates = duplicatedButton !== null;
-        if (hasDuplicates) {
-          house.hasDuplicates = true;
-          await (async () => {
-            await page.click(duplicatedButton);
-
-            await page.waitForSelector(
-              'section[data-cy="deduplication-modal-list-step"]',
-              { timeout: 5000 }
-            );
-
-            const links = await page.evaluate(() => {
-              const linksSection = document.querySelector(
-                'section[data-cy="deduplication-modal-list-step"]'
-              );
-              if (!linksSection) return [];
-              return Array.from(linksSection.querySelectorAll("a")).map(
-                (a) => a.href
-              );
-            });
-
-            if (links && links.length > 0) {
-              house.link = links[0];
-            }
-
-            await page.keyboard.press("Escape");
-
-            await page.waitForTimeout(500);
-          })();
+        // Atualize o link se houver alternativas
+        if (links && links.length > 0) {
+          house.link = links[0];
         }
-        return house;
-      })
-    );
-  });
+
+        // Feche o modal
+        await page.keyboard.press("Escape");
+        await page.waitForTimeout(500);
+      } catch (error) {
+        console.error(
+          `Erro ao processar duplicados para ${house.elementId}:`,
+          error
+        );
+      }
+    }
+    results.push(house);
+  }
+
+  return results;
 };
 
 module.exports = async (maxPrice) => {
