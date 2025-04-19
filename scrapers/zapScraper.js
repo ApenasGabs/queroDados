@@ -5,6 +5,29 @@ const { saveJSON, loadJSON } = require("../utils/fileHelper");
 const { createTargetURL } = require("../config/zapConfig");
 const { simulateInteractions } = require("../utils/interactionsHelper");
 
+const logError = async (message, details = {}) => {
+  const logPath = path.join(__dirname, "../data/results/zapErrors.json");
+  let logs = [];
+
+  try {
+    const existingContent = await fs
+      .readFile(logPath, "utf8")
+      .catch(() => "[]");
+    logs = JSON.parse(existingContent);
+  } catch (e) {
+    logs = [];
+  }
+
+  logs.push({
+    timestamp: new Date().toISOString(),
+    message,
+    details,
+  });
+
+  await fs.writeFile(logPath, JSON.stringify(logs, null, 2));
+  console.error(`[ERROR LOG] ${message}`);
+};
+
 const getHouseList = async (page) => {
   return await page.evaluate(() => {
     const filteredItems = Array.from(
@@ -137,36 +160,86 @@ module.exports = async (maxPrice) => {
       page = await browser.newPage();
       console.log(`Acessando página ${pageNumber}`);
       const url = createTargetURL({ pagina: pageNumber });
-      await page.goto(url, {
-        waitUntil: "domcontentloaded",
-        timeout: 0,
-      });
-      await page.waitForSelector("div.listings-wrapper", {
-        timeout: 3000,
-      });
-      await simulateInteractions(page, "zapInteractionData");
 
-      let newHouses = await getHouseList(page);
+      try {
+        await page.goto(url, {
+          waitUntil: "domcontentloaded",
+          timeout: 0,
+        });
 
-      newHouses = await processDuplicatedLinks(page, newHouses);
+        try {
+          await page.waitForSelector("div.listings-wrapper", {
+            timeout: 10000,
+          });
+        } catch (selectorError) {
+          await logError("Falha ao encontrar div.listings-wrapper", {
+            page: pageNumber,
+            url,
+            errorMessage: selectorError.message,
+          });
 
-      console.log("newHouses: ", newHouses);
+          const hasContent = await page.evaluate(() => {
+            return document.body.innerText.length > 100;
+          });
 
-      if (newHouses.length === 0) {
-        console.log("Nenhuma casa encontrada nesta página.");
-        throw new Error("A lista de casas está vazia.");
+          if (!hasContent) {
+            throw new Error("Página sem conteúdo suficiente");
+          }
+
+          await page.waitForTimeout(5000);
+        }
+
+        await simulateInteractions(page, "zapInteractionData");
+
+        let newHouses = await getHouseList(page);
+
+        newHouses = await processDuplicatedLinks(page, newHouses);
+
+        console.log("newHouses: ", newHouses);
+
+        if (newHouses.length === 0) {
+          console.log("Nenhuma casa encontrada nesta página.");
+          throw new Error("A lista de casas está vazia.");
+        }
+
+        houseList.push(...newHouses);
+
+        const lastHighPrice = newHouses[newHouses.length - 1]?.price || 0;
+
+        if (parseInt(lastHighPrice) >= maxPrice) {
+          console.log("preço final chegou: ", lastHighPrice);
+          hasNextPage = false;
+        }
+        pageNumber++;
+        await browser.close();
+      } catch (pageError) {
+        await logError(`Erro ao processar página ${pageNumber}`, {
+          url,
+          errorMessage: pageError.message,
+        });
+
+        if (page) {
+          const screenshotPath = `data/results/erro_zap_pagina_${pageNumber}_${new Date()
+            .toLocaleString("pt-BR", {
+              timeZone: "America/Sao_Paulo",
+              dateStyle: "short",
+              timeStyle: "short",
+            })
+            .replace(/[/:,]/g, "-")
+            .replace(/ /g, "_")}.png`;
+
+          await page.screenshot({
+            path: screenshotPath,
+            fullPage: true,
+          });
+
+          await logError("Screenshot salvo", { path: screenshotPath });
+        }
+
+        pageNumber++;
+        if (browser) await browser.close();
+        continue;
       }
-
-      houseList.push(...newHouses);
-
-      const lastHighPrice = newHouses[newHouses.length - 1]?.price || 0;
-
-      if (parseInt(lastHighPrice) >= maxPrice) {
-        console.log("preço final chegou: ", lastHighPrice);
-        hasNextPage = false;
-      }
-      pageNumber++;
-      await browser.close();
     }
 
     console.log("Total de casas encontradas:", houseList.length);
@@ -180,18 +253,27 @@ module.exports = async (maxPrice) => {
     }
   } catch (error) {
     console.error("Erro durante o scraping:", error);
+    await logError("Erro geral durante o scraping", {
+      errorMessage: error.message,
+      stack: error.stack,
+    });
+
     if (page) {
+      const screenshotPath = `data/results/erro_zap_${new Date()
+        .toLocaleString("pt-BR", {
+          timeZone: "America/Sao_Paulo",
+          dateStyle: "long",
+          timeStyle: "medium",
+        })
+        .replace(/[/:,]/g, "-")
+        .replace(/ /g, "_")}.png`;
+
       await page.screenshot({
-        path: `data/results/erro_zap_${new Date()
-          .toLocaleString("pt-BR", {
-            timeZone: "America/Sao_Paulo",
-            dateStyle: "long",
-            timeStyle: "medium",
-          })
-          .replace(/[/:,]/g, "-")
-          .replace(/ /g, "_")}.png`,
+        path: screenshotPath,
         fullPage: true,
       });
+
+      await logError("Screenshot salvo", { path: screenshotPath });
     }
   } finally {
     if (browser) {

@@ -375,6 +375,11 @@ jobs:
             platform=$(basename "$file" Results.json)
             platform_upper=${platform^^}
 
+            # Ignorar arquivos de erro ao contar resultados
+            if [[ "$platform" == "olxErrors" || "$platform" == "zapErrors" ]]; then
+              continue
+            fi
+
             total=$(jq 'length' "$file")
             with_ids=$(jq 'map(select(.id != null)) | length' "$file")
 
@@ -389,6 +394,40 @@ jobs:
             echo "- 📦 Total após merge: $total" >> merge-summary.md
             echo "" >> merge-summary.md
           done
+
+          echo "### ⚠️ Erros durante o scraping" >> merge-summary.md
+          echo "" >> merge-summary.md
+
+          # Processar logs de erro do Zap
+          if [ -f "data/results/zapErrors.json" ]; then
+            echo "#### ZAP Imóveis" >> merge-summary.md
+            erro_count=$(jq 'length' data/results/zapErrors.json)
+            echo "Encontrados $erro_count erros durante o scraping" >> merge-summary.md
+            
+            # Listar os 5 erros mais recentes
+            echo "<details>" >> merge-summary.md
+            echo "<summary>Detalhes dos últimos erros</summary>" >> merge-summary.md
+            echo "" >> merge-summary.md
+            
+            jq -r 'sort_by(.timestamp) | reverse | .[0:5] | .[] | "**[\(.timestamp)]** \(.message)\n\n```\n\(.details.errorMessage // "Sem detalhes")\n```\n"' data/results/zapErrors.json >> merge-summary.md
+            
+            echo "</details>" >> merge-summary.md
+          fi
+
+          # Processar logs de erro do OLX (se existirem)
+          if [ -f "data/results/olxErrors.json" ]; then
+            echo "#### OLX" >> merge-summary.md
+            erro_count=$(jq 'length' data/results/olxErrors.json)
+            echo "Encontrados $erro_count erros durante o scraping" >> merge-summary.md
+            
+            echo "<details>" >> merge-summary.md
+            echo "<summary>Detalhes dos últimos erros</summary>" >> merge-summary.md
+            echo "" >> merge-summary.md
+            
+            jq -r 'sort_by(.timestamp) | reverse | .[0:5] | .[] | "**[\(.timestamp)]** \(.message)\n\n```\n\(.details.errorMessage // "Sem detalhes")\n```\n"' data/results/olxErrors.json >> merge-summary.md
+            
+            echo "</details>" >> merge-summary.md
+          fi
 
           echo "### 🗺️ Coordenadas geográficas" >> merge-summary.md
           echo "- 📍 Total de bairros identificados: ${{ env.TOTAL_NEIGHBORHOODS }}" >> merge-summary.md
