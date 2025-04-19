@@ -395,6 +395,10 @@ jobs:
             echo "" >> merge-summary.md
           done
 
+          echo "### 🗺️ Coordenadas geográficas" >> merge-summary.md
+          echo "- 📍 Total de bairros identificados: ${{ env.TOTAL_NEIGHBORHOODS }}" >> merge-summary.md
+          echo "- ✅ Coordenadas atualizadas: ${{ env.COORDINATES_UPDATED }}" >> merge-summary.md
+          echo "" >> merge-summary.md
           echo "### ⚠️ Erros durante o scraping" >> merge-summary.md
           echo "" >> merge-summary.md
 
@@ -429,11 +433,6 @@ jobs:
             echo "</details>" >> merge-summary.md
           fi
 
-          echo "### 🗺️ Coordenadas geográficas" >> merge-summary.md
-          echo "- 📍 Total de bairros identificados: ${{ env.TOTAL_NEIGHBORHOODS }}" >> merge-summary.md
-          echo "- ✅ Coordenadas atualizadas: ${{ env.COORDINATES_UPDATED }}" >> merge-summary.md
-          echo "" >> merge-summary.md
-
           echo "### 🖼️ Capturas de Erro" >> merge-summary.md
           COMMIT_HASH=$(git rev-parse HEAD) 
           for img in screenshots/*.png; do
@@ -451,4 +450,4 @@ jobs:
           title: "🤖 Atualização automática de dados - ${{ env.FORMATTED_DATE }}"
           body-path: querocasa/merge-summary.md
           base: api
-          update-branch: true
+          # update-branch: true
