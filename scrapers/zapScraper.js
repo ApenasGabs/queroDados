@@ -4,7 +4,7 @@ const path = require("path");
 const { saveJSON, loadJSON } = require("../utils/fileHelper");
 const { createTargetURL } = require("../config/zapConfig");
 const { simulateInteractions } = require("../utils/interactionsHelper");
-
+const { delay } = require("../utils/delayHelper");
 const logError = async (message, details = {}) => {
   const logPath = path.join(__dirname, "../data/results/zapErrors.json");
   let logs = [];
@@ -33,7 +33,7 @@ const logError = async (message, details = {}) => {
  * @function getHouseList
  * @param {Object} page - Objeto da página Puppeteer para interação com o navegador
  * @description Extrai informações de listagens de imóveis do site ZAP Imóveis.
- * 
+ *
  * O processo de extração ocorre nas seguintes etapas:
  * 1. Expõe uma função de log para mensagens do navegador
  * 2. Extrai dados básicos de cada imóvel através de seletores DOM:
@@ -52,7 +52,7 @@ const logError = async (message, details = {}) => {
  *    - Extração de links alternativos
  *    - Salvamento do HTML do modal para depuração
  *    - Atualização do link principal quando duplicados são encontrados
- * 
+ *
  * @returns {Promise<Array>} Lista de imóveis com todas as informações extraídas
  * @throws {Error} Erros durante o processamento são logados, mas não interrompem a extração
  */
@@ -138,7 +138,7 @@ const getHouseList = async (page) => {
           `#${house.elementId} button[data-cy="listing-card-deduplicated-button"]`
         );
 
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await delay();
 
         await page.screenshot({
           path: `data/results/debug_post_click_${house.elementId}.png`,
@@ -331,7 +331,7 @@ module.exports = async (maxPrice) => {
             throw new Error("Página sem conteúdo suficiente");
           }
 
-          await page.waitFor(5000);
+          await delay(5000);
         }
 
         await simulateInteractions(page, "zapInteractionData");
