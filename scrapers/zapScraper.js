@@ -62,66 +62,269 @@ const getHouseList = async (page) => {
   });
 
   const basicData = await page.evaluate(() => {
-    const filteredItems = Array.from(
-      document.querySelectorAll(
-        'div.listings-wrapper li[data-cy="rp-property-cd"]'
-      )
-    );
+    // Função auxiliar para criar IDs de propriedades
     const generatePropertyId = () => {
       const now = new Date();
       const timestamp = now.getTime();
       const randomSuffix = Math.floor(Math.random() * 1000);
-
       return `prop_${timestamp}_${randomSuffix}`;
     };
 
-    return filteredItems.map((li, idx) => {
-      const card = li.querySelector('div[data-testid="card"]');
-      const description = Array.from(
-        card.querySelectorAll('p[data-testid="card-amenity"]')
-      ).reduce((acc, el) => {
-        const key = el.getAttribute("itemprop");
-        const value = el.innerText.split(" ").shift();
-        acc.push({ [key]: value });
-        return acc;
-      }, []);
+    // Função auxiliar para extrair dados com segurança
+    const safeQuerySelector = (parent, selector) => {
+      try {
+        if (!parent) return null;
+        return parent.querySelector(selector);
+      } catch (error) {
+        console.log(`Erro ao selecionar ${selector}: ${error.message}`);
+        return null;
+      }
+    };
 
-      const images = Array.from(
-        li.querySelectorAll(
-          'div[data-cy="rp-cardProperty-image-img"] ul li img'
-        )
-      ).map((img) => img.src);
+    // Função para extrair descrições, usando múltiplos seletores alternativos
+    const getDescriptions = (container) => {
+      try {
+        if (!container) return [];
 
-      const price = card
-        .querySelector('div[data-cy="rp-cardProperty-price-txt"] p')
-        ?.innerText?.replace(/[R$\s.]/g, "");
+        // Lista de seletores a tentar, em ordem de prioridade
+        const selectors = [
+          '[data-cy^="rp-cardProperty-"]:not([data-cy="rp-cardProperty-tag-txt"])',
+          'li[data-cy^="rp-cardProperty-"][data-cy$="-txt"]',
+          "ul.flex.flex-row li",
+        ];
 
-      const address = card.querySelector(
-        '[data-cy="rp-cardProperty-location-txt"]'
-      )?.innerText;
+        // Tenta cada seletor até encontrar resultados
+        let elements = [];
+        for (const selector of selectors) {
+          elements = container.querySelectorAll(selector);
+          if (elements && elements.length > 0) {
+            console.log(
+              `Encontrados ${elements.length} elementos com seletor: ${selector}`
+            );
+            break;
+          }
+        }
 
-      const hasDuplicates =
-        card.querySelector(
-          'button[data-cy="listing-card-deduplicated-button"]'
-        ) !== null;
+        // Se não encontrou elementos, retorna array vazio
+        if (!elements || elements.length === 0) {
+          return [];
+        }
 
-      const liId = `house-item-${idx}`;
-      li.id = liId;
+        return Array.from(elements).reduce((acc, el) => {
+          try {
+            const titleSpan = el.querySelector("span.sr-only");
+            const title = titleSpan?.innerText?.trim() || "";
 
-      const simpleLink = li.querySelector("a")?.href;
+            // Se não encontrou o título via span, tenta outras abordagens
+            let finalTitle = title;
+            if (!finalTitle) {
+              // Tenta extrair do atributo data-cy
+              const dataCy = el.getAttribute("data-cy") || "";
+              if (dataCy && dataCy.includes("rp-cardProperty-")) {
+                finalTitle = dataCy
+                  .replace("rp-cardProperty-", "")
+                  .replace("-txt", "")
+                  .replace(/([A-Z])/g, " $1")
+                  .replace(/^./, (str) => str.toUpperCase())
+                  .trim();
+              }
+            }
 
-      return {
-        id: generatePropertyId(),
-        address,
-        description,
-        images,
-        link: simpleLink,
-        price,
-        hasDuplicates,
-        scrapedAt: new Date().toISOString(),
-        elementId: liId,
-      };
-    });
+            // Obtém o valor do texto do elemento
+            const h3Element = el.querySelector("h3");
+            let value = "";
+
+            if (h3Element) {
+              // Remove o título do texto para obter apenas o valor
+              value = h3Element.innerText?.trim() || "";
+              if (title) {
+                value = value.replace(title, "").trim();
+              }
+            } else {
+              // Se não tem h3, tenta pegar o texto diretamente do elemento
+              value = el.innerText?.trim() || "";
+              if (title) {
+                value = value.replace(title, "").trim();
+              }
+            }
+
+            if (finalTitle && value) {
+              acc.push({ [finalTitle]: value });
+            }
+          } catch (innerError) {
+            console.log(`Erro ao processar descrição: ${innerError.message}`);
+          }
+          return acc;
+        }, []);
+      } catch (error) {
+        console.log(`Erro geral ao obter descrições: ${error.message}`);
+        return [];
+      }
+    };
+
+    try {
+      // Tenta diferentes seletores para garantir que encontremos os itens
+      const selectors = [
+        'div.listings-wrapper li[data-cy="rp-property-cd"]',
+        'div.listings-wrapper ul li[data-cy="rp-property-cd"]',
+        'ul li[data-cy="rp-property-cd"]',
+      ];
+
+      let filteredItems = [];
+      for (const selector of selectors) {
+        const items = document.querySelectorAll(selector);
+        if (items && items.length > 0) {
+          console.log(
+            `Encontrados ${items.length} itens com seletor: ${selector}`
+          );
+          filteredItems = Array.from(items);
+          break;
+        }
+      }
+
+      if (filteredItems.length === 0) {
+        console.log("Não foi possível encontrar nenhum item de propriedade");
+        return [];
+      }
+
+      return filteredItems
+        .map((li, idx) => {
+          try {
+            // Verifica se li existe
+            if (!li) {
+              console.log(`Item ${idx} não encontrado`);
+              return null;
+            }
+
+            // ID para o item atual
+            const liId = `house-item-${idx}`;
+            li.id = liId;
+
+            // Tenta obter o link, independente do resto da estrutura
+            const simpleLink = safeQuerySelector(li, "a")?.href || "";
+
+            // Busca card com verificação de nulo, usando seletores alternativos
+            let card = null;
+            const cardSelectors = [
+              'div[data-testid="card"]',
+              ".flex.flex-col.content-stretch",
+              ".flex.flex-col.grow",
+            ];
+
+            for (const selector of cardSelectors) {
+              card = safeQuerySelector(li, selector);
+              if (card) break;
+            }
+
+            // Se não encontrar card, retorna objeto parcial, mas com as informações que conseguimos
+            if (!card) {
+              console.log(
+                `Card não encontrado para o item ${idx}, usando informações parciais`
+              );
+              return {
+                id: generatePropertyId(),
+                elementId: liId,
+                link: simpleLink,
+                hasDuplicates: false,
+                incomplete: true,
+                scrapedAt: new Date().toISOString(),
+              };
+            }
+
+            // Extrair descrições, seja do card ou do li
+            const description =
+              getDescriptions(card) || getDescriptions(li) || [];
+
+            // Obter imagens com segurança, tentando vários seletores
+            let images = [];
+            const imageSelectors = [
+              'div[data-cy="rp-cardProperty-image-img"] ul li img',
+              ".olx-core-carousel img",
+              "div img",
+            ];
+
+            for (const selector of imageSelectors) {
+              const imgElements = li.querySelectorAll(selector);
+              if (imgElements && imgElements.length > 0) {
+                images = Array.from(imgElements)
+                  .map((img) => img.src || "")
+                  .filter(Boolean);
+                break;
+              }
+            }
+
+            // Obter preço com segurança, tentando vários seletores
+            let price = "";
+            const priceSelectors = [
+              'div[data-cy="rp-cardProperty-price-txt"] p',
+              ".text-2-25",
+              "p.font-semibold",
+            ];
+
+            for (const selector of priceSelectors) {
+              const priceElement =
+                card?.querySelector(selector) || li?.querySelector(selector);
+              if (priceElement?.innerText) {
+                price = priceElement.innerText.replace(/[R$\s.]/g, "");
+                break;
+              }
+            }
+
+            // Obter endereço com segurança
+            let address = "";
+            const addressSelectors = [
+              '[data-cy="rp-cardProperty-location-txt"]',
+              "h2",
+              'p[data-cy="rp-cardProperty-street-txt"]',
+            ];
+
+            for (const selector of addressSelectors) {
+              const addressElement =
+                card?.querySelector(selector) || li?.querySelector(selector);
+              if (addressElement?.innerText) {
+                address = addressElement.innerText.trim();
+                break;
+              }
+            }
+
+            // Verificar duplicados com segurança
+            let hasDuplicates = false;
+            const duplicateSelectors = [
+              'button[data-cy="listing-card-deduplicated-button"]',
+              'button:contains("Ver os")',
+            ];
+
+            for (const selector of duplicateSelectors) {
+              if (
+                card?.querySelector(selector) ||
+                li?.querySelector(selector)
+              ) {
+                hasDuplicates = true;
+                break;
+              }
+            }
+
+            return {
+              id: generatePropertyId(),
+              address,
+              description,
+              images,
+              link: simpleLink,
+              price,
+              hasDuplicates,
+              scrapedAt: new Date().toISOString(),
+              elementId: liId,
+            };
+          } catch (error) {
+            console.log(`Erro ao processar item ${idx}: ${error.message}`);
+            return null;
+          }
+        })
+        .filter(Boolean); // Remove itens nulos
+    } catch (outerError) {
+      console.log(`Erro geral ao processar itens: ${outerError.message}`);
+      return [];
+    }
   });
 
   const results = [];
