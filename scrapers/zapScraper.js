@@ -235,6 +235,27 @@ const getHouseList = async (page) => {
             const description =
               getDescriptions(card) || getDescriptions(li) || [];
 
+            // Limpar os textos da descrição, especialmente o campo Location
+            const cleanedDescription = description.map((descObj) => {
+              const key = Object.keys(descObj)[0];
+              let value = descObj[Object.keys(descObj)[0]];
+
+              // Se for um campo de localização, limpar o prefixo "Casa para comprar em"
+              if (key === "Location" && value) {
+                value = value.replace(
+                  /^(Casa|Apartamento|Imóvel) para (comprar|alugar) em\n/i,
+                  ""
+                );
+              }
+
+              // Se for campo de preço, remover informações de IPTU
+              if (key === "Price" && value) {
+                value = value.split("\n")[0].trim();
+              }
+
+              return { [key]: value };
+            });
+
             // Obter imagens com segurança, tentando vários seletores
             let images = [];
             const imageSelectors = [
@@ -265,7 +286,9 @@ const getHouseList = async (page) => {
               const priceElement =
                 card?.querySelector(selector) || li?.querySelector(selector);
               if (priceElement?.innerText) {
-                price = priceElement.innerText.replace(/[R$\s.]/g, "");
+                // Pega apenas o primeiro valor de preço (antes do IPTU)
+                const priceText = priceElement.innerText.split("\n")[0];
+                price = priceText.replace(/[R$\s.]/g, "");
                 break;
               }
             }
@@ -282,7 +305,13 @@ const getHouseList = async (page) => {
               const addressElement =
                 card?.querySelector(selector) || li?.querySelector(selector);
               if (addressElement?.innerText) {
-                address = addressElement.innerText.trim();
+                // Remove "Casa para comprar em\n" e textos similares
+                address = addressElement.innerText
+                  .trim()
+                  .replace(
+                    /^(Casa|Apartamento|Imóvel) para (comprar|alugar) em\n/i,
+                    ""
+                  );
                 break;
               }
             }
@@ -307,7 +336,7 @@ const getHouseList = async (page) => {
             return {
               id: generatePropertyId(),
               address,
-              description,
+              description: cleanedDescription,
               images,
               link: simpleLink,
               price,
@@ -329,6 +358,13 @@ const getHouseList = async (page) => {
 
   const results = [];
   for (const house of basicData) {
+    // Se o imóvel tem link vazio e hasDuplicates, vamos garantir que ele tenha um link padrão
+    if (!house.link && house.hasDuplicates) {
+      const defaultLink = `https://www.zapimoveis.com.br/imovel/${house.elementId}`;
+      house.link = defaultLink;
+      console.log(`Definido link padrão para imóvel sem link: ${defaultLink}`);
+    }
+
     if (house.hasDuplicates) {
       console.log("hasDuplicates: ", house);
       try {
@@ -337,11 +373,71 @@ const getHouseList = async (page) => {
           fullPage: false,
         });
 
-        await page.click(
-          `#${house.elementId} button[data-cy="listing-card-deduplicated-button"]`
-        );
+        // Verificar se o botão de duplicados existe antes de clicar
+        const buttonExists = await page.evaluate((elementId) => {
+          const element = document.querySelector(
+            `#${elementId} button[data-cy="listing-card-deduplicated-button"]`
+          );
+          if (element) {
+            return true;
+          }
 
-        await delay();
+          // Tenta alternativas caso o seletor principal não funcione
+          const alternativeSelectors = [
+            `#${elementId} button:contains("Ver os")`,
+            `#${elementId} button:contains("duplicado")`,
+            `#${elementId} [data-cy*="deduplicated"]`,
+          ];
+
+          for (const selector of alternativeSelectors) {
+            const altElement = document.querySelector(selector);
+            if (altElement) return true;
+          }
+
+          return false;
+        }, house.elementId);
+
+        if (!buttonExists) {
+          console.log(
+            `Botão de duplicados não encontrado para ${house.elementId}, pulando.`
+          );
+          results.push(house);
+          continue;
+        }
+
+        // Tentar clicar usando várias abordagens
+        try {
+          await page.click(
+            `#${house.elementId} button[data-cy="listing-card-deduplicated-button"]`
+          );
+        } catch (clickError) {
+          console.log(
+            `Erro ao clicar no botão padrão: ${clickError.message}, tentando alternativas`
+          );
+
+          // Tenta clicar usando JavaScript diretamente
+          await page.evaluate((elementId) => {
+            const element = document.querySelector(
+              `#${elementId} button[data-cy="listing-card-deduplicated-button"]`
+            );
+            if (element) element.click();
+
+            // Tenta alternativas
+            const alternatives = [
+              document.querySelector(`#${elementId} button:contains("Ver os")`),
+              document.querySelector(
+                `#${elementId} button:contains("duplicado")`
+              ),
+              document.querySelector(`#${elementId} [data-cy*="deduplicated"]`),
+            ];
+
+            for (const alt of alternatives) {
+              if (alt) alt.click();
+            }
+          }, house.elementId);
+        }
+
+        await delay(2000); // Aumenta o tempo de espera para garantir que o modal apareça
 
         await page.screenshot({
           path: `data/results/debug_post_click_${house.elementId}.png`,
@@ -362,11 +458,18 @@ const getHouseList = async (page) => {
 
             await window.logFromBrowser("Buscando modal no DOM...");
 
+            // Seletores expandidos para tentar encontrar o modal de qualquer forma
             const selectors = [
               'section[data-cy="deduplication-modal-list-step"]',
               'div[role="dialog"]',
               "section.modal-list",
               '[data-cy*="deduplication"]',
+              ".modal",
+              '[class*="modal"]',
+              '[id*="modal"]',
+              'div[aria-modal="true"]',
+              "div.fixed.inset-0", // Common pattern for modal overlays
+              "div.fixed.flex.items-center.justify-center",
             ];
 
             let foundElement = null;
@@ -401,14 +504,19 @@ const getHouseList = async (page) => {
               }
             }
 
+            // Se não encontrou o modal com seletores específicos,
+            // procura links relevantes em toda a página que podem ter aparecido
             if (!foundElement) {
               await window.logFromBrowser(
-                "Modal não encontrado com seletores específicos"
+                "Modal não encontrado com seletores específicos, buscando links relevantes"
               );
               html = document.body.innerHTML;
 
-              const allLinks = document.querySelectorAll("a");
-              const relevantLinks = Array.from(allLinks)
+              // Prioriza links que apareceram recentemente na página (possível modal)
+              const allLinks = Array.from(
+                document.querySelectorAll("a[href*='zapimoveis']")
+              );
+              const relevantLinks = allLinks
                 .filter((a) => {
                   const href = a.href.toLowerCase();
                   const text = a.innerText.toLowerCase();
@@ -424,7 +532,18 @@ const getHouseList = async (page) => {
                 .map((a) => ({
                   href: a.href,
                   text: a.innerText.trim(),
-                }));
+                  isVisible: a.offsetParent !== null, // check visibility
+                  position: {
+                    top: a.getBoundingClientRect().top,
+                    left: a.getBoundingClientRect().left,
+                  },
+                }))
+                .sort((a, b) => {
+                  // Prioriza links visíveis
+                  if (a.isVisible && !b.isVisible) return -1;
+                  if (!a.isVisible && b.isVisible) return 1;
+                  return 0;
+                });
 
               if (relevantLinks.length > 0) {
                 links = relevantLinks;
@@ -459,9 +578,28 @@ const getHouseList = async (page) => {
 
         console.log("Links encontrados:", modalLinks);
 
+        // Se temos links no modal, atualizamos o link do imóvel com o primeiro link válido
         if (modalLinks.length > 0) {
-          house.link = modalLinks[0].href;
-          console.log(`Link atualizado para: ${house.link}`);
+          // Filtra apenas links válidos do ZAP Imóveis e com href
+          const validLinks = modalLinks.filter(
+            (link) =>
+              link.href &&
+              link.href.includes("zapimoveis") &&
+              link.href.includes("imovel")
+          );
+
+          if (validLinks.length > 0) {
+            house.link = validLinks[0].href;
+            console.log(`Link atualizado para: ${house.link}`);
+          } else {
+            console.log(
+              `Não foram encontrados links válidos para ${house.elementId}`
+            );
+          }
+        } else if (!house.link || house.link.trim() === "") {
+          // Fallback: se não temos links do modal e o link atual está vazio, definimos um link padrão
+          house.link = `https://www.zapimoveis.com.br/imovel/${house.elementId}`;
+          console.log(`Link fallback definido: ${house.link}`);
         }
 
         try {
@@ -475,6 +613,12 @@ const getHouseList = async (page) => {
           `Erro ao processar duplicados para ${house.elementId}:`,
           error
         );
+
+        // Mesmo com erro, garantimos que o imóvel tenha um link
+        if (!house.link || house.link.trim() === "") {
+          house.link = `https://www.zapimoveis.com.br/imovel/${house.elementId}`;
+          console.log(`Link fallback após erro definido: ${house.link}`);
+        }
       }
     }
     results.push(house);
