@@ -1,8 +1,8 @@
-# Scraper de Imóveis - ZAP e OLX
+# Scraper de Imóveis - QueroDADOS
 
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/ApenasGabs/scraping-grupo-olx/scrape.yml?label=Pipeline%20de%20Scraping)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/ApenasGabs/querodados/scrape.yml?label=Pipeline%20de%20Scraping)
 
-Sistema automatizado de coleta e processamento de dados imobiliários do ZAP Imóveis e OLX para o projeto QueroCAsa.
+Sistema automatizado de coleta e processamento de dados imobiliários de portais populares para o projeto QueroCAsa.
 
 ## 📝 Índice
 
@@ -19,11 +19,11 @@ Sistema automatizado de coleta e processamento de dados imobiliários do ZAP Im�
 
 ## 🔎 Visão Geral
 
-Este projeto é responsável por extrair automaticamente dados imobiliários das plataformas ZAP Imóveis e OLX, processar essas informações e disponibilizá-las em um formato padronizado para o projeto QueroCAsa. O processo é totalmente automatizado através de uma pipeline CI/CD no GitHub Actions.
+Este projeto é responsável por extrair automaticamente dados imobiliários de portais de imóveis populares, processar essas informações e disponibilizá-las em um formato padronizado para o projeto QueroCAsa. O processo é totalmente automatizado através de uma pipeline CI/CD no GitHub Actions.
 
 ### Principais Características
 
-- Scraping automático das plataformas ZAP e OLX
+- Scraping automático de portais imobiliários populares
 - Normalização e padronização dos dados
 - Registro de erros com capturas de tela para depuração
 - Geração automática de estatísticas e relatórios
@@ -35,7 +35,7 @@ Este projeto é responsável por extrair automaticamente dados imobiliários das
 
 Nossa arquitetura está dividida em:
 
-1. **Scrapers**: Módulos específicos para cada plataforma (ZAP e OLX)
+1. **Scrapers**: Módulos específicos para cada portal
 2. **Pipeline CI/CD**: Workflow automatizado no GitHub Actions
 3. **Processamento de Dados**: Scripts para mesclagem e validação
 4. **Repositório Alvo**: Destino final dos dados processados
@@ -57,8 +57,8 @@ Para mais detalhes, consulte [Documentação de Arquitetura](docs/architecture.m
 1. Clone o repositório:
 
    ```bash
-   git clone https://github.com/ApenasGabs/scraping-grupo-olx.git
-   cd scraping-grupo-olx
+   git clone https://github.com/ApenasGabs/querodados.git
+   cd querodados
    ```
 
 2. Instale as dependências:
@@ -83,11 +83,11 @@ Para executar os scrapers localmente:
 # Criar diretório para resultados
 mkdir -p data/results
 
-# Executar scraper OLX
-node scrapers/index.js olx 500000  # O número é o preço máximo
+# Executar scraper do portal 1
+node scrapers/index.js portal1 500000  # O número é o preço máximo
 
-# Executar scraper ZAP
-node scrapers/index.js zap 500000  # O número é o preço máximo
+# Executar scraper do portal 2
+node scrapers/index.js portal2 500000  # O número é o preço máximo
 
 # Executar ambos
 npm run scrape
@@ -103,7 +103,7 @@ A pipeline de CI/CD é executada automaticamente:
 
 O processo inclui:
 
-1. Execução paralela dos scrapers ZAP e OLX
+1. Execução paralela dos scrapers dos portais imobiliários
 2. Armazenamento dos resultados como artefatos
 3. Download e processamento dos artefatos
 4. Mesclagem com dados existentes
@@ -130,8 +130,8 @@ Para mais detalhes, consulte [Documentação da Pipeline](docs/pipeline.md).
 ├── logs/                    # Arquivos de log
 ├── scrapers/                # Código dos scrapers
 │   ├── index.js             # Ponto de entrada
-│   ├── olxScraper.js        # Scraper OLX
-│   └── zapScraper.js        # Scraper ZAP
+│   ├── portal1Scraper.js    # Scraper do Portal 1
+│   └── portal2Scraper.js    # Scraper do Portal 2
 ├── utils/                   # Utilitários compartilhados
 │   ├── fileHelper.js        # Manipulação de arquivos
 │   ├── dateHelper.js        # Funções de data

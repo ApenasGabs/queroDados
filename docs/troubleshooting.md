@@ -248,15 +248,15 @@ Para depurar localmente sem a pipeline:
 
 ```bash
 # Execute com Node debugger
-node --inspect scrapers/index.js zap 1000000
+node --inspect scrapers/index.js portal1 1000000
 
 # Ou com console.log detalhado
-DEBUG=true node scrapers/index.js olx 1000000
+DEBUG=true node scrapers/index.js portal2 1000000
 ```
 
 ## Quando Atualizar Seletores
 
-Os sites de imóveis costumam atualizar suas interfaces, exigindo atualização dos seletores. Sinais de que é hora de atualizar:
+Os portais de imóveis costumam atualizar suas interfaces, exigindo atualização dos seletores. Sinais de que é hora de atualizar:
 
 1. Aumento repentino de erros de timeout
 2. Scraper funciona mas retorna arrays vazios
@@ -267,4 +267,4 @@ Os sites de imóveis costumam atualizar suas interfaces, exigindo atualização 
 1. Abra o site manualmente
 2. Use as ferramentas de desenvolvedor (F12)
 3. Inspecione os elementos relevantes
-4. Atualize os seletores em `olxScraper.js` ou `zapScraper.js`
+4. Atualize os seletores em `portal1Scraper.js` ou `portal2Scraper.js`
