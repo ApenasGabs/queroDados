@@ -251,6 +251,7 @@ jobs:
       - name: Install dependencies in querocasa
         run: |
           cd querocasa
+          npm install --package-lock-only
           npm ci --prefer-offline
 
       - name: Validate scraped data
@@ -271,7 +272,7 @@ jobs:
           cd querocasa
 
           cat > run-merge.js <<'EOF'
-          import { processPlatformResults, configurePaths } from './scripts/mergeResults.js';
+          import { processPlatformResults, configurePaths } from './scripts/alaSQLmergeResults.js';
 
           const OLD_PATH = './data/results';
           const NEW_PATH = '../data/results_new';
@@ -308,115 +309,169 @@ jobs:
           echo "===== VERIFICANDO RESULTADOS DO MERGE ====="
           cd querocasa/data/results
 
-          # Função melhorada para verificar arquivos JSON
-          verify_json_file() {
+          # Função melhorada para verificar arquivos JSON com retry
+          verify_json_file_with_retry() {
             local file=$1
-            echo "Analisando $file..."
+            local max_attempts=3  # Número máximo de tentativas
+            local attempt=1
+            local retry_delay=5   # Tempo entre tentativas (segundos)
+            local success=false
             
-            # Verificar se o arquivo existe
-            if [ ! -f "$file" ]; then
-              echo "❌ Arquivo $file não encontrado após o merge!"
-              return 1
-            fi
+            echo "🔍 Analisando $file (com retry automático)..."
             
-            # Verificar tamanho do arquivo
-            local file_size=$(stat -c %s "$file")
-            echo "📊 Tamanho do arquivo: $file_size bytes"
-            
-            if [ "$file_size" -lt 5 ]; then
-              echo "❌ Arquivo $file está vazio ou muito pequeno!"
-              echo "[]" > "$file"
-              echo "✅ Arquivo substituído por um array vazio válido"
-              return 0
-            fi
-            
-            # Verificar se é um JSON válido
-            local jq_result
-            jq_result=$(jq empty "$file" 2>&1)
-            if [ $? -ne 0 ]; then
-              echo "❌ Arquivo $file contém JSON inválido!"
-              echo "🔍 Erro detalhado: $jq_result"
-              
-              # Diagnóstico adicional para encontrar o problema
-              echo "🔎 Tentando localizar o problema..."
-              
-              # Verificar se o início e fim são válidos (deve começar com [ e terminar com ])
-              local first_char=$(head -c 1 "$file")
-              local last_char=$(tail -c 2 "$file" | head -c 1)
-              
-              if [ "$first_char" != "[" ]; then
-                echo "❌ O arquivo não começa com '['. Primeiro caractere: $first_char"
+            while [ $attempt -le $max_attempts ] && [ "$success" != "true" ]; do
+              if [ $attempt -gt 1 ]; then
+                echo "🔄 Tentativa $attempt de $max_attempts para verificar $file"
+                echo "   Aguardando $retry_delay segundos antes de tentar novamente..."
+                sleep $retry_delay
               fi
               
-              if [ "$last_char" != "]" ]; then
-                echo "❌ O arquivo não termina com ']'. Último caractere: $last_char"
+              # Verificar se o arquivo existe
+              if [ ! -f "$file" ]; then
+                echo "❌ Arquivo $file não encontrado após o merge!"
+                if [ $attempt -lt $max_attempts ]; then
+                  ((attempt++))
+                  continue
+                else
+                  echo "⚠️ Criando arquivo vazio após $max_attempts tentativas falhas"
+                  echo "[]" > "$file"
+                  success=true
+                  break
+                fi
               fi
               
-              # Verificar problemas comuns
-              grep -n ",]" "$file" | head -5 | while read line; do
-                echo "🔴 Vírgula antes do fechamento de array na linha: $line"
-              done
+              # Verificar tamanho do arquivo
+              local file_size=$(stat -c %s "$file")
+              echo "📊 Tamanho do arquivo: $file_size bytes"
               
-              grep -n ",}" "$file" | head -5 | while read line; do
-                echo "🔴 Vírgula antes do fechamento de objeto na linha: $line"
-              done
-              
-              # Tentar recuperar o arquivo com jq
-              echo "🔄 Tentativa de recuperação automática..."
-              if jq -e 'if type == "array" then . else [] end' "$file" > "${file}.fixed" 2>/dev/null; then
-                mv "${file}.fixed" "$file"
-                echo "✅ Arquivo recuperado com sucesso!"
-              else
-                echo "❌ Tentativa de recuperação falhou. Criando array vazio..."
+              if [ "$file_size" -lt 5 ]; then
+                echo "❌ Arquivo $file está vazio ou muito pequeno!"
                 echo "[]" > "$file"
                 echo "✅ Arquivo substituído por um array vazio válido"
+                success=true
+                break
               fi
               
-              return 0
-            fi
-            
-            # Se chegou aqui, o JSON é válido
-            local total=$(jq 'length' "$file")
-            echo "✅ Arquivo $file é um JSON válido"
-            echo "📊 Total de propriedades em $file: $total"
-            
-            # Verificar número de itens com IDs
-            if jq -e 'map(select(.id != null)) | length' "$file" > /dev/null; then
-              local ids_count=$(jq 'map(select(.id != null)) | length' "$file")
-              echo "🏷️ Número de itens com IDs: $ids_count"
-              
-              if [ $ids_count -lt $total ]; then
-                echo "⚠️ Atenção: há $(($total - $ids_count)) itens sem ID!"
+              # Verificar se é um JSON válido
+              local jq_result
+              if jq empty "$file" > /dev/null 2>&1; then
+                echo "✅ Arquivo $file é um JSON válido"
+                
+                # Se chegou aqui, o JSON é válido
+                local total=$(jq 'length' "$file")
+                echo "📊 Total de propriedades em $file: $total"
+                
+                # Verificar número de itens com IDs
+                if jq -e 'map(select(.id != null)) | length' "$file" > /dev/null; then
+                  local ids_count=$(jq 'map(select(.id != null)) | length' "$file")
+                  echo "🏷️ Número de itens com IDs: $ids_count"
+                  
+                  if [ $ids_count -lt $total ]; then
+                    echo "⚠️ Atenção: há $(($total - $ids_count)) itens sem ID!"
+                  fi
+                  
+                  # Mostrar os primeiros IDs como amostra
+                  echo "🔑 Amostra de IDs:"
+                  jq -r 'map(select(.id != null)) | .[0:3] | .[].id' "$file" 2>/dev/null || echo "Nenhum ID encontrado"
+                else
+                  echo "⚠️ Nenhum item com ID encontrado!"
+                fi
+                
+                # Verificar se há propriedades sem links
+                local no_link_count=$(jq 'map(select(.link == null)) | length' "$file")
+                if [ "$no_link_count" -gt 0 ]; then
+                  echo "⚠️ Há $no_link_count itens sem link!"
+                fi
+                
+                success=true
+                break
+              else
+                # JSON inválido - tenta corrigir
+                jq_result=$(jq empty "$file" 2>&1)
+                echo "❌ Arquivo $file contém JSON inválido na tentativa $attempt!"
+                echo "🔍 Erro detalhado: $jq_result"
+                
+                # Diagnóstico adicional para encontrar o problema
+                echo "🔎 Tentando localizar o problema..."
+                
+                # Verificar se o início e fim são válidos (deve começar com [ e terminar com ])
+                local first_char=$(head -c 1 "$file")
+                local last_char=$(tail -c 2 "$file" | head -c 1)
+                
+                if [ "$first_char" != "[" ]; then
+                  echo "❌ O arquivo não começa com '['. Primeiro caractere: $first_char"
+                fi
+                
+                if [ "$last_char" != "]" ]; then
+                  echo "❌ O arquivo não termina com ']'. Último caractere: $last_char"
+                fi
+                
+                # Verificar problemas comuns
+                grep -n ",]" "$file" | head -5 | while read line; do
+                  echo "🔴 Vírgula antes do fechamento de array na linha: $line"
+                done
+                
+                grep -n ",}" "$file" | head -5 | while read line; do
+                  echo "🔴 Vírgula antes do fechamento de objeto na linha: $line"
+                done
+                
+                # Tentar recuperar o arquivo com jq
+                echo "🔄 Tentativa de recuperação automática..."
+                if jq -e 'if type == "array" then . else [] end' "$file" > "${file}.fixed" 2>/dev/null; then
+                  mv "${file}.fixed" "$file"
+                  echo "✅ Arquivo recuperado com sucesso!"
+                  
+                  # Verificar se a recuperação funcionou
+                  if jq empty "$file" > /dev/null 2>&1; then
+                    echo "✅ Recuperação bem-sucedida, JSON agora é válido"
+                    success=true
+                    break
+                  else
+                    echo "❌ Recuperação não foi suficiente, ainda temos problemas"
+                  fi
+                else
+                  echo "❌ Tentativa de recuperação falhou."
+                  
+                  # Na última tentativa, criar array vazio
+                  if [ $attempt -eq $max_attempts ]; then
+                    echo "⚠️ Chegamos ao limite de tentativas. Criando array vazio..."
+                    echo "[]" > "$file"
+                    echo "✅ Arquivo substituído por um array vazio válido"
+                    success=true
+                    break
+                  fi
+                fi
               fi
               
-              # Mostrar os primeiros IDs como amostra
-              echo "🔑 Amostra de IDs:"
-              jq -r 'map(select(.id != null)) | .[0:3] | .[].id' "$file" 2>/dev/null || echo "Nenhum ID encontrado"
-            else
-              echo "⚠️ Nenhum item com ID encontrado!"
-            fi
+              # Preparar para próxima tentativa
+              ((attempt++))
+              
+              # Espera adicional com sincronização de disco antes da próxima tentativa
+              echo "🔄 Forçando sincronização do sistema de arquivos..."
+              sync
+            done
             
-            # Verificar se há propriedades sem links
-            local no_link_count=$(jq 'map(select(.link == null)) | length' "$file")
-            if [ "$no_link_count" -gt 0 ]; then
-              echo "⚠️ Há $no_link_count itens sem link!"
+            if [ "$success" != "true" ]; then
+              echo "❌ Todas as tentativas falharam para $file. Criando array vazio de emergência."
+              echo "[]" > "$file"
+              echo "✅ Arquivo substituído por um array vazio válido"
             fi
             
             return 0
           }
 
-          # Validando os arquivos
+          # Validando os arquivos com retry
           echo "🔍 Analisando olxResults.json após o merge:"
-          verify_json_file "olxResults.json"
+          verify_json_file_with_retry "olxResults.json"
 
           echo "🔍 Analisando zapResults.json após o merge:"
-          verify_json_file "zapResults.json"
+          verify_json_file_with_retry "zapResults.json"
 
           # Verificação final para garantir que ambos os arquivos são válidos
           echo "🧪 Verificação final dos arquivos processados:"
           for file in olxResults.json zapResults.json; do
             if ! jq empty "$file" 2>/dev/null; then
-              echo "❌ FALHA: $file ainda contém JSON inválido após tentativas de correção!"
+              echo "❌ FALHA: $file ainda contém JSON inválido após todas as tentativas!"
               echo "⚠️ Conteúdo de emergência sendo aplicado..."
               echo "[]" > "$file"
               echo "✅ Arquivo $file definido como array vazio"
