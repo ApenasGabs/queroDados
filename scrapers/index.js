@@ -16,9 +16,20 @@ const hasSupabaseConfig =
       console.log("OLX scraper executado com sucesso.");
     } else if (scraperType === "zap") {
       if (hasSupabaseConfig) {
-        // Lazy-require so that the Supabase client is only instantiated when
-        // credentials are available — avoids a hard crash at startup.
-        const zapCrawleeHybrid = require("./zapCrawleeHybrid");
+        let zapCrawleeHybrid;
+        try {
+          // Lazy-require so that the Supabase client is only instantiated when
+          // credentials are available — avoids a hard crash at startup.
+          zapCrawleeHybrid = require("./zapCrawleeHybrid");
+        } catch (requireErr) {
+          console.error(
+            "[ERROR] Não foi possível carregar o scraper Crawlee/Supabase. " +
+              "Verifique se as dependências estão instaladas (npm install) e se " +
+              "SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY estão corretas.\n" +
+              requireErr.message
+          );
+          process.exit(1);
+        }
         await zapCrawleeHybrid(maxPrice);
         console.log("Zap Crawlee hybrid scraper executado com sucesso.");
       } else {

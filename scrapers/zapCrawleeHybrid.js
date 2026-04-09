@@ -335,11 +335,27 @@ async function runZapCrawleeHybrid({ maxPrice, maxPages, headless = true } = {})
 
           if (cardInfo.rawLink) {
             // Find the <li> whose anchor href contains the card's rawLink slug.
+            // Use page.evaluate with direct DOM traversal to avoid CSS selector
+            // injection from slug characters (hyphens, parentheses, etc.).
             const rawSlug = cardInfo.rawLink.split("/").filter(Boolean).pop();
             if (rawSlug) {
-              buttonHandle = await page.$(
-                `${CARD_SEL}:has(a[href*="${rawSlug}"]) ${DUPLICATE_BTN_SEL}`
+              buttonHandle = await page.evaluateHandle(
+                (cardSel, btnSel, slug) => {
+                  const cards = Array.from(document.querySelectorAll(cardSel));
+                  const matchedCard = cards.find((li) => {
+                    const anchor = li.querySelector("a");
+                    return anchor && anchor.href && anchor.href.includes(slug);
+                  });
+                  return matchedCard ? matchedCard.querySelector(btnSel) : null;
+                },
+                CARD_SEL,
+                DUPLICATE_BTN_SEL,
+                rawSlug
               );
+              // evaluateHandle returns a JSHandle wrapping null when not found.
+              if (buttonHandle && (await buttonHandle.jsonValue()) === null) {
+                buttonHandle = null;
+              }
             }
           }
 
