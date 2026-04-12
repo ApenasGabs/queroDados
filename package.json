@@ -4,19 +4,29 @@
   "description": "",
   "main": "scrapers/index.js",
   "scripts": {
-    "start": "nodemon src/index.js",
+    "start": "node scrapers/index.js",
+    "scrape": "npm run scrape:olx && npm run scrape:zap",
+    "scrape:olx": "node scrapers/index.js olx",
+    "scrape:zap": "node scrapers/index.js zap",
+    "scheduler": "node scrapers/scheduler.js",
+    "scheduler:now": "node scrapers/scheduler.js --now",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
     "alasql": "^4.6.6",
     "axios": "^1.7.7",
+    "better-sqlite3": "^11.10.0",
     "cheerio": "^1.0.0",
+    "crawlee": "^3.16.0",
+    "node-cron": "^3.0.3",
     "puppeteer": "^23.3.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"
   }
 }
+
